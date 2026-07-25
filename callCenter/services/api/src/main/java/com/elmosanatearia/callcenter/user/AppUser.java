@@ -22,6 +22,8 @@ public class AppUser {
     private boolean active = true;
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
+    @Column(name="avatar_bytes") private byte[] avatarBytes;
+    @Column(name="avatar_content_type",length=80) private String avatarContentType;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
     @Column(name = "updated_at", nullable = false)
@@ -43,4 +45,6 @@ public class AppUser {
     public void setActive(boolean active) { this.active = active; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public byte[] getAvatarBytes(){return avatarBytes;} public void setAvatarBytes(byte[] value){avatarBytes=value;}
+    public String getAvatarContentType(){return avatarContentType;} public void setAvatarContentType(String value){avatarContentType=value;}
 }

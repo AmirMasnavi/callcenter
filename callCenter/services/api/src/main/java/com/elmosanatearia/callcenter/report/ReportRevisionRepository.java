@@ -1,3 +1,6 @@
 package com.elmosanatearia.callcenter.report;
 import org.springframework.data.jpa.repository.JpaRepository;
-public interface ReportRevisionRepository extends JpaRepository<ReportRevision,Long>{}
+import java.util.List;
+public interface ReportRevisionRepository extends JpaRepository<ReportRevision,Long>{
+ List<ReportRevision> findByReportIdOrderByCreatedAtDesc(Long reportId);
+}

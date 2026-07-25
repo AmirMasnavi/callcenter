@@ -4,11 +4,12 @@ import com.elmosanatearia.callcenter.user.AppUser;
 import jakarta.persistence.*;
 import java.time.*;
 
-@Entity @Table(name="daily_reports", uniqueConstraints=@UniqueConstraint(columnNames={"agent_id","report_date"}))
+@Entity @Table(name="daily_reports")
 public class DailyReport {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch=FetchType.LAZY, optional=false) @JoinColumn(name="agent_id") private AppUser agent;
     @Column(name="report_date",nullable=false) private LocalDate reportDate;
+    @Column(name="report_label",length=120) private String reportLabel;
     @Column(name="total_people",nullable=false) private int totalPeople;
     @Column(name="contacted_count",nullable=false) private int contactedCount;
     @Column(name="ok_count",nullable=false) private int okCount;
@@ -28,6 +29,7 @@ public class DailyReport {
     public int notContacted(){ return totalPeople-contactedCount; }
     public Long getId(){return id;} public AppUser getAgent(){return agent;} public void setAgent(AppUser v){agent=v;}
     public LocalDate getReportDate(){return reportDate;} public void setReportDate(LocalDate v){reportDate=v;}
+    public String getReportLabel(){return reportLabel;} public void setReportLabel(String v){reportLabel=v;}
     public int getTotalPeople(){return totalPeople;} public void setTotalPeople(int v){totalPeople=v;}
     public int getContactedCount(){return contactedCount;} public void setContactedCount(int v){contactedCount=v;}
     public int getOkCount(){return okCount;} public void setOkCount(int v){okCount=v;}
@@ -39,5 +41,6 @@ public class DailyReport {
     public Instant getSubmittedAt(){return submittedAt;} public void setSubmittedAt(Instant v){submittedAt=v;}
     public Instant getReviewedAt(){return reviewedAt;} public void setReviewedAt(Instant v){reviewedAt=v;}
     public AppUser getReviewer(){return reviewer;} public void setReviewer(AppUser v){reviewer=v;}
+    public Instant getCreatedAt(){return createdAt;} public Instant getUpdatedAt(){return updatedAt;}
     public long getVersion(){return version;}
 }

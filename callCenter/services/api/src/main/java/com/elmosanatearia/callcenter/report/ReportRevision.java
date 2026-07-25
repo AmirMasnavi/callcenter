@@ -13,4 +13,7 @@ public class ReportRevision {
  @Column(name="created_at",nullable=false) private Instant createdAt=Instant.now();
  public ReportRevision(){}
  public ReportRevision(DailyReport r,AppUser a,String reason,String oldV,String newV){report=r;actor=a;this.reason=reason;oldValues=oldV;newValues=newV;}
+ public Long getId(){return id;} public DailyReport getReport(){return report;} public AppUser getActor(){return actor;}
+ public String getReason(){return reason;} public String getOldValues(){return oldValues;} public String getNewValues(){return newValues;}
+ public Instant getCreatedAt(){return createdAt;}
 }

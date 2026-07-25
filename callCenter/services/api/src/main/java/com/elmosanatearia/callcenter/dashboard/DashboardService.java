@@ -14,7 +14,7 @@ public class DashboardService {
  public record Totals(long reports,long totalPeople,long contacted,long notContacted,long ok,long maybe,long no,long noAnswer,double contactRate,double okRate){}
  public record Trend(LocalDate date,long totalPeople,long contacted,long ok,long maybe,long no,long noAnswer){}
  public record AgentRow(Long agentId,String agentName,long reports,long totalPeople,long contacted,long ok,long maybe,long no,long noAnswer){}
- public record Result(Totals totals,List<Trend> trend,List<AgentRow> agents,Totals previous){}
+ public record Result(Totals totals,List<Trend> trend,List<AgentRow> agents,Totals previous,List<ReportDtos.View> reports){}
  @Transactional(readOnly=true)
  public Result get(LocalDate from,LocalDate to,Context context,Long supervisorId,Long agentId){
   if(to.isBefore(from)||from.plusYears(2).isBefore(to))throw new IllegalArgumentException("بازه تاریخ معتبر نیست");
@@ -28,7 +28,8 @@ public class DashboardService {
   Map<LocalDate,List<DailyReport>> byDate=new TreeMap<>();current.forEach(r->byDate.computeIfAbsent(r.getReportDate(),x->new ArrayList<>()).add(r));
   Map<Long,List<DailyReport>> byAgent=new LinkedHashMap<>();current.forEach(r->byAgent.computeIfAbsent(r.getAgent().getId(),x->new ArrayList<>()).add(r));
   return new Result(total(current),byDate.entrySet().stream().map(e->trend(e.getKey(),e.getValue())).toList(),
-   byAgent.values().stream().map(this::agent).sorted(Comparator.comparing(AgentRow::agentName)).toList(),total(previous));
+   byAgent.values().stream().map(this::agent).sorted(Comparator.comparing(AgentRow::agentName)).toList(),total(previous),
+   current.stream().sorted(Comparator.comparing(DailyReport::getSubmittedAt,Comparator.nullsLast(Comparator.reverseOrder()))).map(ReportDtos.View::of).toList());
  }
  private Totals total(List<DailyReport> rs){long t=sum(rs,DailyReport::getTotalPeople),c=sum(rs,DailyReport::getContactedCount),ok=sum(rs,DailyReport::getOkCount);return new Totals(rs.size(),t,c,t-c,ok,sum(rs,DailyReport::getMaybeCount),sum(rs,DailyReport::getNoCount),sum(rs,DailyReport::getNoAnswerCount),t==0?0:c*100d/t,c==0?0:ok*100d/c);}
  private Trend trend(LocalDate d,List<DailyReport> r){return new Trend(d,sum(r,DailyReport::getTotalPeople),sum(r,DailyReport::getContactedCount),sum(r,DailyReport::getOkCount),sum(r,DailyReport::getMaybeCount),sum(r,DailyReport::getNoCount),sum(r,DailyReport::getNoAnswerCount));}

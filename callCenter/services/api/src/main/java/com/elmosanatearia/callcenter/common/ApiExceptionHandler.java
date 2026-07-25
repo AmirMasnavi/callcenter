@@ -24,7 +24,7 @@ public class ApiExceptionHandler {
  @ExceptionHandler(IllegalStateException.class)
  ResponseEntity<Problem> state(IllegalStateException ex){return ResponseEntity.status(409).body(new Problem(Instant.now(),409,ex.getMessage(),Map.of()));}
  @ExceptionHandler(DataIntegrityViolationException.class)
- ResponseEntity<Problem> duplicate(DataIntegrityViolationException ex){return ResponseEntity.status(409).body(new Problem(Instant.now(),409,"گزارش این تاریخ قبلاً ثبت شده است",Map.of()));}
+ ResponseEntity<Problem> duplicate(DataIntegrityViolationException ex){return ResponseEntity.status(409).body(new Problem(Instant.now(),409,"اطلاعات تکراری یا ناسازگار است",Map.of()));}
  @ExceptionHandler(SecurityException.class)
  ResponseEntity<Problem> forbidden(SecurityException ex){return ResponseEntity.status(403).body(new Problem(Instant.now(),403,ex.getMessage(),Map.of()));}
  @ExceptionHandler(AuthenticationException.class)

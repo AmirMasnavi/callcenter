@@ -13,5 +13,7 @@ public class ReportController {
  @PostMapping("/reports/draft") View draft(@Valid @RequestBody SaveRequest q,@AuthenticationPrincipal AppPrincipal p){return service.saveDraft(p,q);}
  @PostMapping("/reports/{id}/submit") View submit(@PathVariable Long id,@RequestParam Long version,@AuthenticationPrincipal AppPrincipal p){return service.submit(id,version,p);}
  @GetMapping("/supervisor/reports/pending") List<View> pending(@AuthenticationPrincipal AppPrincipal p){return service.pending(p);}
+ @GetMapping("/supervisor/reports") List<View> team(@AuthenticationPrincipal AppPrincipal p){return service.team(p);}
+ @GetMapping("/supervisor/reports/{id}/revisions") List<RevisionView> revisions(@PathVariable Long id,@AuthenticationPrincipal AppPrincipal p){return service.revisions(id,p);}
  @PostMapping("/supervisor/reports/{id}/approve") View approve(@PathVariable Long id,@Valid @RequestBody ReviewRequest q,@AuthenticationPrincipal AppPrincipal p){return service.review(id,q,p);}
 }
