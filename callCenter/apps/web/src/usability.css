@@ -1,0 +1,35 @@
+.logout-btn {
+  width: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  color: #d7e1eb !important;
+  border: 1px solid #ffffff26 !important;
+  border-radius: 9px;
+}
+.logout-btn i { font-style: normal; }
+.logout-btn span { color: inherit; font-size: 11px; }
+.link-button {
+  margin-top: 12px;
+  padding: 10px;
+  color: var(--navy);
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+}
+.validation-list {
+  margin: -7px 0 17px;
+  padding: 11px 14px;
+  color: #a32f3a;
+  font-size: 12px;
+  line-height: 1.9;
+  background: #fff2f3;
+  border: 1px solid #f8d4d8;
+  border-radius: 11px;
+}
+.history.standalone { margin-top: 0; }
+@media (max-width: 900px) {
+  .rmdp-container { width: 100%; }
+  .date-input { width: 100%; min-height: 28px; }
+}

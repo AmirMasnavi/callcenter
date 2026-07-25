@@ -1,21 +1,51 @@
-# Call Center Reporting System
+# گزارش‌یار کال‌سنتر علم و صنعت آریا
 
-A mobile-first web application for end-of-day, aggregated call-center reporting. Agents create daily reports, supervisors review and approve them, managers view clearly separated provisional and official statistics, and administrators manage access and audit history.
+وب‌اپ فارسی و واکنش‌گرا برای ثبت، بررسی و تحلیل گزارش‌های روزانه کال‌سنتر.
 
-The product is a modular monolith: a React web client, a Java Spring Boot API, and PostgreSQL. It deliberately does **not** record individual calls or provide CRM, telephony, or AI analytics capabilities.
+## اجرای سریع با Docker
 
-## Project layout
-
-```text
-apps/web/                 React + TypeScript client (to be initialized in Phase 3)
-services/api/             Spring Boot modular-monolith API
-packages/api-contract/    Shared API-contract artifacts when introduced
-infrastructure/           Local environment and deployment assets
-docs/                     Product, engineering, architecture, and operational documentation
+```bash
+cp .env.example .env
+# حتماً رمزهای فایل .env را تغییر دهید
+docker compose up --build
 ```
 
-Read [the development guide](docs/development-guide.md) before making changes. The complete baseline product specification is in [docs/description](docs/description/Call_Center_Reporting_System_Project_Specification.md).
+سامانه در `http://localhost:8088` در دسترس است. در اولین ورود از حساب ادمین
+تعریف‌شده در `.env` استفاده کنید و رمز را تغییر دهید.
 
-## Current state
+### حساب‌های اولیه Docker
 
-Repository structure and project documentation are in place. Application and frontend scaffolding remain intentionally unimplemented; Phase 1 begins with the API foundation.
+| نقش | نام کاربری | رمز موقت پیش‌فرض |
+| --- | --- | --- |
+| ادمین | `admin` | `ChangeMe123!` |
+| مدیر | `manager` | `Demo12345!` |
+| ناظر | `supervisor` | `Demo12345!` |
+| اپراتور | `operator` | `Demo12345!` |
+
+نام کاربری `callcenter` فقط متعلق به دیتابیس PostgreSQL است و حساب ورود به
+اپلیکیشن نیست. تمام حساب‌های بالا در اولین ورود باید رمز موقت را تغییر دهند.
+برای محیط production مقدار `DEMO_USERS_ENABLED=false` و رمزهای امن تنظیم کنید.
+
+## توسعه محلی
+
+پیش‌نیازها: Java 21، Maven، Node 22 و PostgreSQL.
+
+```bash
+mvn -pl services/api spring-boot:run
+cd apps/web
+npm install
+npm run dev
+```
+
+مستندات OpenAPI در `/api-docs` و health check در `/actuator/health` قرار دارد.
+
+## مدل گزارش
+
+هر اپراتور برای هر تاریخ یک گزارش دارد. پیش‌نویس فقط برای خود اپراتور قابل مشاهده
+است. پس از ارسال، گزارش برای مدیر در نمای لحظه‌ای و برای ناظر مربوطه در صف بررسی
+ظاهر می‌شود. اصلاح ناظر بدون دلیل ممکن نیست و مقدارهای قبل و بعد نگهداری می‌شوند.
+
+## پشتیبان‌گیری
+
+از volume دیتابیس به‌صورت زمان‌بندی‌شده با `pg_dump` نسخه پشتیبان تهیه کنید. پیش
+از هر ارتقا، backup را در یک دیتابیس آزمایشی restore و صحت آن را بررسی کنید.

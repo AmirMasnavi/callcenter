@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: callcenter
+      POSTGRES_USER: ${DB_USER:-callcenter}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-this-database-password}
+    volumes: [callcenter_data:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${DB_USER:-callcenter} -d callcenter"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  api:
+    build: services/api
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/callcenter
+      DB_USER: ${DB_USER:-callcenter}
+      DB_PASSWORD: ${DB_PASSWORD:-change-this-database-password}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe123!}
+      ADMIN_NAME: ${ADMIN_NAME:-مدیر سامانه}
+      DEMO_USERS_ENABLED: ${DEMO_USERS_ENABLED:-true}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo12345!}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  web:
+    build: apps/web
+    ports: ["${APP_PORT:-8088}:80"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  callcenter_data:

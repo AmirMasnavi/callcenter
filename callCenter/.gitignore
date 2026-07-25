@@ -1,14 +1,8 @@
 target/
-node_modules/
-dist/
-coverage/
-.env
-.env.*
-!.env.example
-.tool-versions
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+.kotlin
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -42,4 +36,12 @@ build/
 .vscode/
 
 ### Mac OS ###
+.DS_Store
+# Build output and local secrets
+**/target/
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+.env
+*.log
 .DS_Store

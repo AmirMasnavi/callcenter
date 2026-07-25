@@ -1,0 +1,10 @@
+.filters select {
+  display: block;
+  max-width: 140px;
+  padding: 5px 2px;
+  color: var(--navy);
+  background: white;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  outline: 0;
+}

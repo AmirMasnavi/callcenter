@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: esa-callcenter
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/callcenter}
+    username: ${DB_USER:callcenter}
+    password: ${DB_PASSWORD:callcenter}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  session:
+    jdbc:
+      initialize-schema: always
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: strict
+        secure: ${COOKIE_SECURE:false}
+      timeout: 8h
+  error:
+    include-message: always
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+springdoc:
+  swagger-ui:
+    path: /api-docs
+app:
+  demo:
+    users-enabled: ${DEMO_USERS_ENABLED:false}
+    password: ${DEMO_PASSWORD:Demo12345!}
+  bootstrap:
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:ChangeMe123!}
+    admin-name: ${ADMIN_NAME:مدیر سامانه}
