@@ -51,3 +51,41 @@ npm run dev
 
 از volume دیتابیس به‌صورت زمان‌بندی‌شده با `pg_dump` نسخه پشتیبان تهیه کنید. پیش
 از هر ارتقا، backup را در یک دیتابیس آزمایشی restore و صحت آن را بررسی کنید.
+
+## انتشار نسخه آزمایشی
+
+### لینک موقت برای تست سریع
+
+پس از اجرای Docker، می‌توان بدون خرید سرور یک آدرس HTTPS موقت ساخت:
+
+```bash
+docker compose up -d --build
+cloudflared tunnel --url http://localhost:8088
+```
+
+آدرس تصادفی `trycloudflare.com` فقط تا زمانی فعال است که کامپیوتر و فرایند
+`cloudflared` روشن باشند. این روش فقط برای تست کوتاه‌مدت و با داده غیرواقعی
+مناسب است.
+
+### محیط staging پایدار
+
+برای تست چندروزه، یک VPS لینوکسی کوچک با Docker و یک زیردامنه مانند
+`callcenter-test.example.com` پیشنهاد می‌شود:
+
+1. کد را روی سرور clone و Docker Engine و Compose Plugin را نصب کنید.
+2. از `.env.example` یک `.env` بسازید و حداقل این موارد را تنظیم کنید:
+
+```dotenv
+DB_PASSWORD=یک-رمز-تصادفی-طولانی
+ADMIN_PASSWORD=یک-رمز-موقت-قوی
+DEMO_USERS_ENABLED=false
+COOKIE_SECURE=true
+APP_PORT=127.0.0.1:8088
+```
+
+3. سرویس را با `docker compose up -d --build` اجرا کنید.
+4. با Cloudflare Tunnel یک hostname پایدار را به
+   `http://localhost:8088` متصل کنید.
+5. با حساب ادمین وارد شوید، رمز را تغییر دهید و حساب‌های محدود تسترها را بسازید.
+6. پیش از ورود داده واقعی، backup زمان‌بندی‌شده PostgreSQL و محدودیت دسترسی
+   کاربران آزمایشی را فعال کنید.
