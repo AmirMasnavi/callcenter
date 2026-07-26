@@ -37,6 +37,48 @@ npm install
 npm run dev
 ```
 
+در این حالت، فرانت‌اند از proxy و API محلی در `http://localhost:8080` استفاده
+می‌کند. مقدار پیش‌فرض فایل `apps/web/.env.local` باید خالی بماند:
+
+```dotenv
+VITE_API_BASE_URL=
+```
+
+## انتشار جداگانهٔ Front-end و Back-end
+
+برای انتشار فرانت‌اند و بک‌اند به‌صورت دو سرویس مجزا (برای نمونه در Render)،
+متغیرهای زیر را تنظیم کنید.
+
+### Front-end
+
+در تنظیمات Environment Variables فرانت‌اند:
+
+```dotenv
+VITE_API_BASE_URL=https://callcenter-tbb6.onrender.com
+```
+
+این مقدار باید URL کامل بک‌اند باشد و اسلش پایانی لازم ندارد.
+
+### Back-end
+
+در تنظیمات Environment Variables بک‌اند:
+
+```dotenv
+CORS_ALLOWED_ORIGINS=https://asa-callcenter.onrender.com
+COOKIE_SECURE=true
+```
+
+`CORS_ALLOWED_ORIGINS` باید دقیقاً URL عمومی فرانت‌اند باشد؛ اگر چند محیط
+دارید، آن‌ها را با کاما جدا کنید. `VITE_API_BASE_URL` هنگام build در bundle
+فرانت‌اند قرار می‌گیرد؛ پس پس از تغییر آن، فرانت‌اند را دوباره deploy کنید.
+
+### بررسی پیش از انتشار
+
+1. ابتدا بک‌اند را deploy کنید و health check آن را در `/actuator/health` باز کنید.
+2. URL بک‌اند را در `VITE_API_BASE_URL` فرانت‌اند بگذارید و فرانت‌اند را deploy کنید.
+3. URL فرانت‌اند را در `CORS_ALLOWED_ORIGINS` بک‌اند بگذارید و بک‌اند را redeploy کنید.
+4. با یک حساب آزمایشی وارد شوید و ایجاد گزارش، بارگذاری تصویر و خروجی CSV را بررسی کنید.
+
 مستندات OpenAPI در `/api-docs` و health check در `/actuator/health` قرار دارد.
 
 ## مدل گزارش
