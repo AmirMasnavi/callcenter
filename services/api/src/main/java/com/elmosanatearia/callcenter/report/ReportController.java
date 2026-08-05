@@ -16,4 +16,11 @@ public class ReportController {
  @GetMapping("/supervisor/reports") List<View> team(@AuthenticationPrincipal AppPrincipal p){return service.team(p);}
  @GetMapping("/supervisor/reports/{id}/revisions") List<RevisionView> revisions(@PathVariable Long id,@AuthenticationPrincipal AppPrincipal p){return service.revisions(id,p);}
  @PostMapping("/supervisor/reports/{id}/approve") View approve(@PathVariable Long id,@Valid @RequestBody ReviewRequest q,@AuthenticationPrincipal AppPrincipal p){return service.review(id,q,p);}
+
+ // --- admin-only report powers (route prefix already restricted to ADMIN in SecurityConfig) ---
+ @GetMapping("/admin/reports") List<View> allReports(@AuthenticationPrincipal AppPrincipal p){return service.team(p);}
+ @GetMapping("/admin/reports/voided") List<View> voided(@AuthenticationPrincipal AppPrincipal p){return service.voided();}
+ @PostMapping("/admin/reports/{id}/void") View voidReport(@PathVariable Long id,@Valid @RequestBody VoidRequest q,@AuthenticationPrincipal AppPrincipal p){return service.voidReport(id,q,p);}
+ @PostMapping("/admin/reports/{id}/restore") View restore(@PathVariable Long id,@AuthenticationPrincipal AppPrincipal p){return service.restoreReport(id,p);}
+ @PostMapping("/admin/reports/{id}/reopen") View reopen(@PathVariable Long id,@Valid @RequestBody ReopenRequest q,@AuthenticationPrincipal AppPrincipal p){return service.reopen(id,q,p);}
 }

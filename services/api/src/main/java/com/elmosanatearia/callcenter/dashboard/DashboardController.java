@@ -9,8 +9,8 @@ public class DashboardController {
  public record FilterOption(Long id,String name,Long supervisorId){}
  public record Filters(java.util.List<FilterOption> supervisors,java.util.List<FilterOption> agents){}
  @GetMapping("/filters") public Filters filters(){
-  var supervisors=users.findByRoleAndActiveTrueOrderByDisplayNameAsc(Role.SUPERVISOR).stream().map(u->new FilterOption(u.getId(),u.getDisplayName(),null)).toList();
-  var agents=users.findByRoleAndActiveTrueOrderByDisplayNameAsc(Role.AGENT).stream().map(u->new FilterOption(u.getId(),u.getDisplayName(),u.getSupervisor()==null?null:u.getSupervisor().getId())).toList();
+  var supervisors=users.findActiveByRole(Role.SUPERVISOR).stream().map(u->new FilterOption(u.getId(),u.getDisplayName(),null)).toList();
+  var agents=users.findActiveByRole(Role.AGENT).stream().map(u->new FilterOption(u.getId(),u.getDisplayName(),u.getSupervisor()==null?null:u.getSupervisor().getId())).toList();
   return new Filters(supervisors,agents);
  }
  @GetMapping public DashboardService.Result get(

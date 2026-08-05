@@ -9,14 +9,18 @@ public final class ReportDtos {
  public record ReviewRequest(@NotNull Long version,@PositiveOrZero int totalPeople,@PositiveOrZero int contactedCount,
    @PositiveOrZero int okCount,@PositiveOrZero int maybeCount,@PositiveOrZero int noCount,
    @PositiveOrZero int noAnswerCount,@Size(max=1000) String notes,@Size(max=1000) String correctionReason){}
+ public record VoidRequest(@NotNull Long version,@NotBlank @Size(max=1000) String reason){}
+ public record ReopenRequest(@NotNull Long version,@NotNull ReportStatus target,@NotBlank @Size(max=1000) String reason){}
  public record View(Long id,Long agentId,String agentName,LocalDate reportDate,String reportLabel,int totalPeople,int contactedCount,
    int notContacted,int okCount,int maybeCount,int noCount,int noAnswerCount,String notes,ReportStatus status,
-   Instant createdAt,Instant updatedAt,Instant submittedAt,Instant reviewedAt,String reviewerName,long version){
+   Instant createdAt,Instant updatedAt,Instant submittedAt,Instant reviewedAt,String reviewerName,long version,
+   boolean voided,Instant voidedAt,String voidedByName,String voidReason){
    public static View of(DailyReport r){
     return new View(r.getId(),r.getAgent().getId(),r.getAgent().getDisplayName(),r.getReportDate(),r.getReportLabel(),r.getTotalPeople(),
       r.getContactedCount(),r.notContacted(),r.getOkCount(),r.getMaybeCount(),r.getNoCount(),r.getNoAnswerCount(),
       r.getNotes(),r.getStatus(),r.getCreatedAt(),r.getUpdatedAt(),r.getSubmittedAt(),r.getReviewedAt(),
-      r.getReviewer()==null?null:r.getReviewer().getDisplayName(),r.getVersion());
+      r.getReviewer()==null?null:r.getReviewer().getDisplayName(),r.getVersion(),
+      r.isVoided(),r.getVoidedAt(),r.getVoidedBy()==null?null:r.getVoidedBy().getDisplayName(),r.getVoidReason());
    }
  }
  public record RevisionView(Long id,String actor,String reason,String oldValues,String newValues,Instant createdAt){

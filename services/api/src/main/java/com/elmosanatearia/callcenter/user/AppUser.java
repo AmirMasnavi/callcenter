@@ -2,6 +2,8 @@ package com.elmosanatearia.callcenter.user;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "app_users")
@@ -14,8 +16,15 @@ public class AppUser {
     private String passwordHash;
     @Column(name = "display_name", nullable = false)
     private String displayName;
-    @Enumerated(EnumType.STRING) @Column(nullable = false)
-    private Role role;
+    /**
+     * A user may hold several roles at once. Fetched eagerly because
+     * {@code loadUserByUsername} builds the principal outside any transaction.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role", nullable = false, length = 24)
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles = new LinkedHashSet<>();
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "supervisor_id")
     private AppUser supervisor;
     @Column(nullable = false)
@@ -37,8 +46,9 @@ public class AppUser {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
+    public Set<Role> getRoles() { return roles; }
+    public void setRoles(Set<Role> roles) { this.roles = new LinkedHashSet<>(roles); }
+    public boolean hasRole(Role role) { return roles.contains(role); }
     public AppUser getSupervisor() { return supervisor; }
     public void setSupervisor(AppUser supervisor) { this.supervisor = supervisor; }
     public boolean isActive() { return active; }

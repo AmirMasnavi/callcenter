@@ -24,6 +24,10 @@ public class DailyReport {
     @Column(name="created_at",nullable=false) private Instant createdAt = Instant.now();
     @Column(name="updated_at",nullable=false) private Instant updatedAt = Instant.now();
     @Version private long version;
+    // Voiding is a soft delete: the row stays so revisions and audit history remain readable.
+    @Column(name="voided_at") private Instant voidedAt;
+    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="voided_by") private AppUser voidedBy;
+    @Column(name="void_reason",length=1000) private String voidReason;
     @PreUpdate void updated(){ updatedAt=Instant.now(); }
     public int outcomeTotal(){ return okCount+maybeCount+noCount+noAnswerCount; }
     public int notContacted(){ return totalPeople-contactedCount; }
@@ -43,4 +47,8 @@ public class DailyReport {
     public AppUser getReviewer(){return reviewer;} public void setReviewer(AppUser v){reviewer=v;}
     public Instant getCreatedAt(){return createdAt;} public Instant getUpdatedAt(){return updatedAt;}
     public long getVersion(){return version;}
+    public boolean isVoided(){ return voidedAt != null; }
+    public Instant getVoidedAt(){return voidedAt;} public void setVoidedAt(Instant v){voidedAt=v;}
+    public AppUser getVoidedBy(){return voidedBy;} public void setVoidedBy(AppUser v){voidedBy=v;}
+    public String getVoidReason(){return voidReason;} public void setVoidReason(String v){voidReason=v;}
 }

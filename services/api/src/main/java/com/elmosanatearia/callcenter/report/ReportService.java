@@ -33,9 +33,17 @@ public class ReportService {
   validate(r);r.setStatus(ReportStatus.SUBMITTED);r.setSubmittedAt(Instant.now());
   DailyReport saved=reports.saveAndFlush(r);audits.save(new AuditEvent(r.getAgent(),"SUBMIT_REPORT","DailyReport",id.toString(),null));return View.of(saved);
  }
- @Transactional(readOnly=true) public List<View> mine(AppPrincipal actor){return reports.findByAgentIdOrderByReportDateDescCreatedAtDesc(actor.id()).stream().map(View::of).toList();}
- @Transactional(readOnly=true) public List<View> pending(AppPrincipal actor){return reports.pending(actor.id(),ReportStatus.SUBMITTED).stream().map(View::of).toList();}
- @Transactional(readOnly=true) public List<View> team(AppPrincipal actor){return reports.teamReports(actor.id()).stream().map(View::of).toList();}
+ @Transactional(readOnly=true) public List<View> mine(AppPrincipal actor){return reports.findByAgentIdAndVoidedAtIsNullOrderByReportDateDescCreatedAtDesc(actor.id()).stream().map(View::of).toList();}
+ // Admins and managers are not scoped to a team, so they see every report.
+ @Transactional(readOnly=true) public List<View> pending(AppPrincipal actor){
+  var rows=actor.hasAnyRole(Role.ADMIN,Role.MANAGER)?reports.pendingAll(ReportStatus.SUBMITTED):reports.pending(actor.id(),ReportStatus.SUBMITTED);
+  return rows.stream().map(View::of).toList();
+ }
+ @Transactional(readOnly=true) public List<View> team(AppPrincipal actor){
+  var rows=actor.hasAnyRole(Role.ADMIN,Role.MANAGER)?reports.allReports():reports.teamReports(actor.id());
+  return rows.stream().map(View::of).toList();
+ }
+ @Transactional(readOnly=true) public List<View> voided(){return reports.voidedReports().stream().map(View::of).toList();}
  @Transactional(readOnly=true) public List<RevisionView> revisions(Long id,AppPrincipal actor){
   DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);assertCanReview(r,actor);
   return revisions.findByReportIdOrderByCreatedAtDesc(id).stream().map(RevisionView::of).toList();
@@ -56,9 +64,60 @@ public class ReportService {
   audits.save(new AuditEvent(reviewer,changed?"CORRECT_AND_APPROVE":"APPROVE_REPORT","DailyReport",id.toString(),changed?q.correctionReason():null));
   return View.of(reports.saveAndFlush(r));
  }
+ /**
+  * Admins and managers may act on any report. A plain supervisor is limited to their own team.
+  * Checked in that order so a user holding SUPERVISOR *and* ADMIN gets the wider access.
+  */
  private void assertCanReview(DailyReport r,AppPrincipal principal){
-  if(principal.role()==Role.SUPERVISOR&&(r.getAgent().getSupervisor()==null||!r.getAgent().getSupervisor().getId().equals(principal.id())))throw new SecurityException("این گزارش متعلق به تیم شما نیست");
-  if(principal.role()!=Role.SUPERVISOR&&principal.role()!=Role.MANAGER&&principal.role()!=Role.ADMIN)throw new SecurityException("دسترسی غیرمجاز");
+  if(principal.hasAnyRole(Role.ADMIN,Role.MANAGER)) return;
+  if(principal.hasRole(Role.SUPERVISOR)){
+   AppUser supervisor=r.getAgent().getSupervisor();
+   if(supervisor==null||!supervisor.getId().equals(principal.id())) throw new SecurityException("این گزارش متعلق به تیم شما نیست");
+   return;
+  }
+  throw new SecurityException("دسترسی غیرمجاز");
+ }
+ private void assertAdmin(AppPrincipal principal){
+  if(!principal.hasRole(Role.ADMIN)) throw new SecurityException("این عملیات فقط برای مدیر سامانه مجاز است");
+ }
+ /** Soft-delete. The row survives so revisions and the audit trail stay readable. */
+ @Transactional public View voidReport(Long id,VoidRequest q,AppPrincipal principal){
+  assertAdmin(principal);
+  DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);
+  if(r.isVoided()) throw new IllegalStateException("این گزارش پیش‌تر ابطال شده است");
+  if(q.version()!=r.getVersion()) throw new IllegalStateException("نسخه گزارش قدیمی است");
+  AppUser admin=users.findById(principal.id()).orElseThrow();
+  r.setVoidedAt(Instant.now());r.setVoidedBy(admin);r.setVoidReason(q.reason().trim());
+  DailyReport saved=reports.saveAndFlush(r);
+  audits.save(new AuditEvent(admin,"VOID_REPORT","DailyReport",id.toString(),q.reason().trim()));
+  return View.of(saved);
+ }
+ @Transactional public View restoreReport(Long id,AppPrincipal principal){
+  assertAdmin(principal);
+  DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);
+  if(!r.isVoided()) throw new IllegalStateException("این گزارش ابطال نشده است");
+  AppUser admin=users.findById(principal.id()).orElseThrow();
+  r.setVoidedAt(null);r.setVoidedBy(null);r.setVoidReason(null);
+  DailyReport saved=reports.saveAndFlush(r);
+  audits.save(new AuditEvent(admin,"RESTORE_REPORT","DailyReport",id.toString(),null));
+  return View.of(saved);
+ }
+ /** Send an approved report back to SUBMITTED or DRAFT so it can be corrected again. */
+ @Transactional public View reopen(Long id,ReopenRequest q,AppPrincipal principal){
+  assertAdmin(principal);
+  DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);
+  if(r.isVoided()) throw new IllegalStateException("گزارش ابطال‌شده قابل بازگشایی نیست");
+  if(q.target()!=ReportStatus.SUBMITTED&&q.target()!=ReportStatus.DRAFT) throw new IllegalArgumentException("وضعیت مقصد باید پیش‌نویس یا در انتظار تأیید باشد");
+  if(r.getStatus()!=ReportStatus.APPROVED&&r.getStatus()!=ReportStatus.CORRECTED_APPROVED) throw new IllegalStateException("فقط گزارش تأییدشده قابل بازگشایی است");
+  if(q.version()!=r.getVersion()) throw new IllegalStateException("نسخه گزارش قدیمی است");
+  AppUser admin=users.findById(principal.id()).orElseThrow();
+  String old=snapshot(r);
+  r.setStatus(q.target());r.setReviewer(null);r.setReviewedAt(null);
+  if(q.target()==ReportStatus.DRAFT) r.setSubmittedAt(null);
+  revisions.save(new ReportRevision(r,admin,"بازگشایی توسط مدیر سامانه: "+q.reason().trim(),old,snapshot(r)));
+  DailyReport saved=reports.saveAndFlush(r);
+  audits.save(new AuditEvent(admin,"REOPEN_REPORT","DailyReport",id.toString(),q.reason().trim()));
+  return View.of(saved);
  }
  private DailyReport owned(Long id,Long uid){DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);if(!r.getAgent().getId().equals(uid))throw new SecurityException("دسترسی غیرمجاز");return r;}
  public static void validate(DailyReport r){if(r.getTotalPeople()<=0)throw new IllegalArgumentException("کل افراد باید بیشتر از صفر باشد");if(r.getContactedCount()>r.getTotalPeople())throw new IllegalArgumentException("تعداد تماس از کل افراد بیشتر است");if(r.outcomeTotal()!=r.getContactedCount())throw new IllegalArgumentException("جمع نتایج باید برابر تعداد تماس‌گرفته باشد");}
