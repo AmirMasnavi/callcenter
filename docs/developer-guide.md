@@ -53,16 +53,28 @@ npm run dev
 ```
 The app will be available at `http://localhost:5173`. Vite proxies API calls from `/api` to `http://localhost:8080`.
 
+> ⚠️ The API's `CORS_ALLOWED_ORIGINS` must list the origin your browser actually loads the app
+> from, or **every login returns 403 `Invalid CORS request`**. For the Vite dev server that is
+> `http://localhost:5173`; for the Docker stack it is `http://localhost:8088` (`APP_PORT`).
+> Testing with `curl` will not reveal this — curl sends no `Origin` header, so it succeeds
+> while real browsers fail.
+
 ---
 
 ## 🧪 Testing Guidelines
 
-### Back-end Unit & Integration Tests (JUnit 5 & Testcontainers)
-To run back-end unit and integration tests:
+### Back-end Unit Tests (JUnit 5)
+To run back-end tests:
 ```bash
-mvn -pl services/api test
+mvn -pl services/api -o clean test
 ```
-*Note: Testcontainers requires Docker to be running locally to spin up disposable PostgreSQL containers during integration tests.*
+
+> ⚠️ **Always include `clean`.** If IntelliJ has compiled the module, its Eclipse-compiler
+> output in `target/` makes Maven fail with `Unresolved compilation problems` even though the
+> source compiles fine. `clean` removes the stale classes and the suite passes.
+
+*Note: Testcontainers is on the classpath for future PostgreSQL-backed integration tests, but
+the current suite is pure unit tests and needs no Docker.*
 
 ### Front-end Unit & Component Tests (Vitest)
 To run front-end test suites:

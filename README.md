@@ -84,6 +84,12 @@ docker compose up --build
 
 Access the application at `http://localhost:8088`.
 
+> [!IMPORTANT]
+> If you change `APP_PORT`, you must also add the matching origin to `CORS_ALLOWED_ORIGINS` in
+> `.env`. The API rejects any browser request whose `Origin` is not on that list, so a mismatch
+> makes **every login fail with 403 `Invalid CORS request`** while the containers all report
+> healthy. Note that `curl` will still succeed, because it sends no `Origin` header.
+
 ### Initial Demo Accounts
 
 > [!IMPORTANT]

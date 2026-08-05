@@ -37,17 +37,33 @@ The web application is exposed on port `8088` (`http://your-server-ip:8088`).
 
 | Variable Name | Default Value | Description |
 | :--- | :--- | :--- |
-| `POSTGRES_DB` | `callcenter` | PostgreSQL database name |
-| `POSTGRES_USER` | `callcenter` | PostgreSQL connection username |
-| `POSTGRES_PASSWORD` | *(Required)* | PostgreSQL connection password |
-| `SPRING_PROFILES_ACTIVE` | `prod` | Spring active profile |
-| `DEMO_USERS_ENABLED` | `true` | Seed initial demo accounts (Set `false` in prod) |
-| `ADMIN_PASSWORD` | `ChangeMe123!` | Initial password for `admin` account |
-| `MANAGER_PASSWORD` | `Demo12345!` | Initial password for `manager` account |
-| `SUPERVISOR_PASSWORD` | `Demo12345!` | Initial password for `supervisor` account |
-| `OPERATOR_PASSWORD` | `Demo12345!` | Initial password for `operator` account |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:8088` | Allowed CORS origins (comma-separated) |
+These are the variables the stack actually reads (see `docker-compose.yml` and
+`services/api/src/main/resources/application.yml`).
+
+| Variable Name | Default Value | Description |
+| :--- | :--- | :--- |
+| `APP_PORT` | `8088` | Host port the web/Nginx container is published on |
+| `DB_URL` | `jdbc:postgresql://db:5432/callcenter` | JDBC URL used by the API |
+| `DB_USER` | `callcenter` | PostgreSQL username (also seeds `POSTGRES_USER`) |
+| `DB_PASSWORD` | *(Required)* | PostgreSQL password (also seeds `POSTGRES_PASSWORD`) |
+| `ADMIN_USERNAME` | `admin` | Username of the bootstrapped admin account |
+| `ADMIN_PASSWORD` | `ChangeMe123!` | Initial password for the admin account |
+| `ADMIN_NAME` | `مدیر سامانه` | Display name for the admin account |
+| `DEMO_USERS_ENABLED` | `true` | Seed `operator`/`supervisor`/`manager` (set `false` in prod) |
+| `DEMO_PASSWORD` | `Demo12345!` | Shared initial password for **all** demo accounts |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:8088,http://localhost:5173` | Allowed browser origins (comma-separated) |
 | `COOKIE_SECURE` | `false` | Set `true` if serving over HTTPS |
+
+> [!WARNING]
+> `CORS_ALLOWED_ORIGINS` must contain the exact origin the browser loads the SPA from,
+> including scheme and port. If it doesn't, the API answers every login with 403
+> `Invalid CORS request` while all containers still report healthy — and `curl` checks pass,
+> because curl sends no `Origin` header. Change `APP_PORT` and you must change this too.
+
+> [!NOTE]
+> There is a single `DEMO_PASSWORD` for every demo account. Per-role variables such as
+> `MANAGER_PASSWORD` or `OPERATOR_PASSWORD` are **not** read by the application. Likewise
+> there is no `prod` Spring profile — configuration is driven entirely by these variables.
 
 ---
 
@@ -60,11 +76,12 @@ If front-end and back-end are hosted independently:
 - **Start Command:** `java -jar services/api/target/callcenter-api-1.0.0.jar`
 - **Environment Variables:**
   ```dotenv
-  DATABASE_URL=jdbc:postgresql://<db-host>:5432/callcenter
-  DATABASE_USERNAME=callcenter
-  DATABASE_PASSWORD=<secure-password>
+  DB_URL=jdbc:postgresql://<db-host>:5432/callcenter
+  DB_USER=callcenter
+  DB_PASSWORD=<secure-password>
   CORS_ALLOWED_ORIGINS=https://asa-callcenter.onrender.com
   COOKIE_SECURE=true
+  DEMO_USERS_ENABLED=false
   ```
 
 ### Front-end Deployment Configuration
