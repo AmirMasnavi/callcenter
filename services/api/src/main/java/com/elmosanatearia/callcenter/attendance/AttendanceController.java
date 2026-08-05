@@ -77,6 +77,14 @@ public class AttendanceController {
         return service.report(from, to);
     }
 
+    /** Every person's sheet at once — what the printable form needs, in one round trip. */
+    @GetMapping("/report/details")
+    public List<AttendanceService.StaffDetail> details(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.details(from, to);
+    }
+
     @GetMapping("/report/{userId}")
     public AttendanceService.StaffDetail detail(@PathVariable Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -93,7 +101,9 @@ public class AttendanceController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) throws IOException {
 
-        var summaries = service.report(from, to);
+        // One pass for both sheets — asking per person re-derived the whole report each time.
+        var sheets = service.details(from, to);
+        var summaries = sheets.stream().map(AttendanceService.StaffDetail::summary).toList();
         DateTimeFormatter time = DateTimeFormatter.ofPattern("HH:mm").withZone(AttendanceService.ZONE);
 
         try (var wb = new XSSFWorkbook(); var out = new ByteArrayOutputStream()) {
@@ -133,11 +143,11 @@ public class AttendanceController {
             for (int i = 0; i < dh.length; i++) { var c = dhead.createCell(i); c.setCellValue(dh[i]); c.setCellStyle(bold); }
 
             int d = 1;
-            for (var s : summaries) {
-                for (var day : service.detail(s.userId(), from, to).days()) {
+            for (var sheetFor : sheets) {
+                for (var day : sheetFor.days()) {
                     for (var shift : day.shifts()) {
                         var row = detail.createRow(d++);
-                        row.createCell(0).setCellValue(s.displayName());
+                        row.createCell(0).setCellValue(sheetFor.summary().displayName());
                         row.createCell(1).setCellValue(day.date().toString());
                         row.createCell(2).setCellValue(time.format(shift.entryAt()));
                         row.createCell(3).setCellValue(shift.exitAt() == null ? "—" : time.format(shift.exitAt()));

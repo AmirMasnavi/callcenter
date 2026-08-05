@@ -4,6 +4,9 @@ import { api, apiUrl, fa, faDateTime } from '../lib/api';
 import Loading from '../components/Loading';
 import Icon from '../components/Icon';
 import Sheet from '../components/Sheet';
+import JalaliDate, { todayIso } from '../components/JalaliDate';
+import { DateObject } from 'react-multi-date-picker';
+import gregorian from 'react-date-object/calendars/gregorian';
 
 interface StaffState {
   userId: number; displayName: string; username: string; hasAvatar: boolean;
@@ -11,16 +14,30 @@ interface StaffState {
   todayMinutes: number; shiftsToday: number;
 }
 
-/** Minutes as "۴:۳۰" — the form is read in hours and minutes, not decimals. */
-export const asHours = (minutes: number) =>
-  `${fa(Math.floor(minutes / 60))}:${String(Math.abs(minutes % 60)).padStart(2, '0')}`;
+/**
+ * Minutes as "۴:۳۰" — the form is read in hours and minutes, not decimals.
+ *
+ * Both halves go through the Persian formatter. Padding the minutes with String() left them
+ * in Latin digits, so every total on the page read "۳:12".
+ */
+export const asHours = (minutes: number) => {
+  const mins = Math.abs(minutes % 60);
+  return `${fa(Math.floor(minutes / 60))}:${fa(mins).padStart(2, '۰')}`;
+};
+
+const pad = (n: number) => String(n).padStart(2, '0');
 
 /** A local <input type="datetime-local"> value from an instant, for the adjust dialog. */
 const toLocalInput = (iso: string | Date) => {
   const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
+
+const clock = (iso: string) =>
+  new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' })
+    .format(new Date(iso));
+const faDayOf = (d: Date) =>
+  new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' }).format(d);
 
 /*
  * The front desk screen.
@@ -140,7 +157,9 @@ interface EntryView {
 
 function AdjustSheet({ staff, onClose, onSaved }: { staff: StaffState; onClose: () => void; onSaved: () => void }) {
   // Corrections are rarely for today — a missed day is usually noticed later.
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // todayIso() is Tehran's date. toISOString() would be UTC's, which lands on the wrong
+  // day every evening and would preselect — and cap at — yesterday.
+  const [date, setDate] = useState(todayIso);
   const q = useQuery({
     queryKey: ['attendance-entries', staff.userId, date],
     queryFn: () => api<EntryView[]>(`/api/v1/attendance/${staff.userId}/entries?date=${date}`),
@@ -172,8 +191,7 @@ function AdjustSheet({ staff, onClose, onSaved }: { staff: StaffState; onClose: 
     <Sheet onClose={onClose} labelledBy="adjust-title">
       <h2 id="adjust-title">اصلاح زمان — {staff.displayName}</h2>
       <label className="day-picker">تاریخ
-        <input type="date" value={date} max={new Date().toISOString().slice(0, 10)}
-               onChange={e => setDate(e.target.value)} />
+        <JalaliDate value={date} onChange={setDate} />
       </label>
       <p className="hint">زمان‌ها را می‌توانید دقیقه‌به‌دقیقه تنظیم کنید.</p>
       {error && <div className="error">{error}</div>}
@@ -199,27 +217,60 @@ function ShiftRow({ entry, onSave, onDelete, busy }: {
   const [entryAt, setEntryAt] = useState(toLocalInput(entry.entryAt));
   const [exitAt, setExitAt] = useState(entry.exitAt ? toLocalInput(entry.exitAt) : '');
   const [note, setNote] = useState(entry.note ?? '');
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="shift-edit">
       <label>ورود<input type="datetime-local" value={entryAt} onChange={e => setEntryAt(e.target.value)} /></label>
       <label>خروج<input type="datetime-local" value={exitAt} onChange={e => setExitAt(e.target.value)} /></label>
       <label>توضیح<input value={note} maxLength={300} onChange={e => setNote(e.target.value)} placeholder="اختیاری" /></label>
-      <div className="admin-action-row">
-        <button className="primary" disabled={busy} onClick={() => onSave(entryAt, exitAt || null, note)}>ذخیره</button>
-        <button className="icon-button danger-ghost" disabled={busy} onClick={onDelete} title="حذف شیفت">
-          <Icon name="trash" size={16} label="حذف شیفت" />
-        </button>
-      </div>
+      {/* Deleting a shift removes paid hours and cannot be undone, so it asks first. Clearing
+          the exit instead is the non-destructive way to mark a shift still running. */}
+      {confirming ? (
+        <div className="admin-action-row confirm-row">
+          <span>این شیفت حذف شود؟</span>
+          <button className="danger" disabled={busy} onClick={onDelete}>حذف</button>
+          <button className="secondary" disabled={busy} onClick={() => setConfirming(false)}>انصراف</button>
+        </div>
+      ) : (
+        <div className="admin-action-row">
+          <button className="primary" disabled={busy} onClick={() => onSave(entryAt, exitAt || null, note)}>ذخیره</button>
+          <button className="icon-button danger-ghost" disabled={busy}
+                  onClick={() => setConfirming(true)} title="حذف شیفت">
+            <Icon name="trash" size={16} label="حذف شیفت" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
+/** The usual shift, offered as the starting point rather than an empty form. */
+const DEFAULT_ENTRY = '14:00';
+const DEFAULT_EXIT = '19:00';
+
+/**
+ * The most recent day on which that shift has actually finished.
+ *
+ * Opening on today would show "این زمان هنوز نرسیده است" every morning, because the default
+ * window is still ahead — an error before the desk has typed anything. A day nobody recorded
+ * is by definition a day that has already passed, so start on the last one that has.
+ */
+const lastCompleteDay = () => {
+  const today = todayIso();
+  const nowInTehran = new Intl.DateTimeFormat('en-GB',
+    { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
+  if (nowInTehran >= DEFAULT_EXIT) return today;
+  const d = new DateObject({ date: today, format: 'YYYY-MM-DD', calendar: gregorian });
+  d.subtract(1, 'days');
+  return d.format('YYYY-MM-DD');
+};
+
 /**
  * Records a whole shift after the fact.
  *
- * Defaults to today with a plausible shift so the common case is two taps, but every field
- * is editable — the point of this sheet is that the desk was not there when it happened.
+ * Defaults to a plausible shift on a day that has already ended, so the common case is two
+ * taps, but every field is editable — the point of this sheet is that the desk was not there.
  */
 function ManualSheet({ staff, everyone, onClose, onSaved }: {
   staff: StaffState | null;
@@ -227,33 +278,46 @@ function ManualSheet({ staff, everyone, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
   const [userId, setUserId] = useState(staff?.userId ?? everyone[0]?.userId ?? 0);
-  const [date, setDate] = useState(today);
-  const [entryTime, setEntryTime] = useState('14:00');
-  const [exitTime, setExitTime] = useState('19:00');
+  const [date, setDate] = useState(lastCompleteDay);
+  const [entryTime, setEntryTime] = useState(DEFAULT_ENTRY);
+  const [exitTime, setExitTime] = useState(DEFAULT_EXIT);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+
+  /*
+   * An exit time at or before the entry time means the shift ran past midnight, which the
+   * paper form recorded as one line. Treating it as "same day" instead made a night shift
+   * impossible to enter at all.
+   */
+  const entryAt = new Date(`${date}T${entryTime}`);
+  const exitAt = new Date(`${date}T${exitTime}`);
+  const overnight = exitAt <= entryAt;
+  if (overnight) exitAt.setDate(exitAt.getDate() + 1);
+
+  const minutes = Math.round((exitAt.getTime() - entryAt.getTime()) / 60000);
+  const inFuture = exitAt.getTime() > Date.now();
+
+  // What is already on the books for that person and day, so the same shift is not filed twice.
+  const existing = useQuery({
+    queryKey: ['attendance-entries', userId, date],
+    queryFn: () => api<EntryView[]>(`/api/v1/attendance/${userId}/entries?date=${date}`),
+    enabled: !!userId,
+  });
 
   const save = useMutation({
     mutationFn: () => api(`/api/v1/attendance/${userId}/manual`, {
       method: 'POST',
+      // Built from local times, so what the desk typed is what gets stored.
       body: JSON.stringify({
-        // Built in local time, so what the desk typed is what gets stored.
-        entryAt: new Date(`${date}T${entryTime}`).toISOString(),
-        exitAt: new Date(`${date}T${exitTime}`).toISOString(),
+        entryAt: entryAt.toISOString(),
+        exitAt: exitAt.toISOString(),
         note: note || null,
       }),
     }),
     onSuccess: onSaved,
     onError: (e: Error) => setError(e.message),
   });
-
-  const minutes = (() => {
-    const a = new Date(`${date}T${entryTime}`).getTime();
-    const b = new Date(`${date}T${exitTime}`).getTime();
-    return b > a ? Math.round((b - a) / 60000) : 0;
-  })();
 
   return (
     <Sheet onClose={onClose} labelledBy="manual-title">
@@ -267,7 +331,7 @@ function ManualSheet({ staff, everyone, onClose, onSaved }: {
           </select>
         </label>
         <label>تاریخ
-          <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)} />
+          <JalaliDate value={date} onChange={setDate} />
         </label>
         <div className="time-pair">
           <label>ساعت ورود
@@ -285,13 +349,32 @@ function ManualSheet({ staff, everyone, onClose, onSaved }: {
 
       {/* The computed duration is shown before saving, so a wrong time is obvious here
           rather than in the payroll report a month later. */}
-      <div className={'equation ' + (minutes > 0 ? 'valid' : 'invalid')}>
+      <div className={'equation ' + (inFuture ? 'invalid' : 'valid')}>
         <span>مدت محاسبه‌شده</span>
-        <b>{minutes > 0 ? asHours(minutes) : 'زمان خروج باید بعد از ورود باشد'}</b>
+        <b>{inFuture ? 'این زمان هنوز نرسیده است' : asHours(minutes)}</b>
       </div>
+      {overnight && !inFuture && (
+        <p className="hint">شیفت شبانه: خروج در بامداد {faDayOf(exitAt)} ثبت می‌شود.</p>
+      )}
+
+      {/* Recording the same shift twice is the easy mistake here, so what is already on the
+          books for that day is visible before saving. */}
+      {!!existing.data?.length && (
+        <div className="existing-shifts">
+          <span>قبلاً برای این روز ثبت شده:</span>
+          <ul>
+            {existing.data.map(e => (
+              <li key={e.id}>
+                {clock(e.entryAt)} تا {e.exitAt ? clock(e.exitAt) : '—'}
+                {e.exitAt && ` · ${asHours(e.workedMinutes)}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {error && <div className="error">{error}</div>}
-      <button className="primary wide" disabled={!minutes || !userId || save.isPending}
+      <button className="primary wide" disabled={!minutes || inFuture || !userId || save.isPending}
               onClick={() => { setError(''); save.mutate(); }}>
         {save.isPending ? 'در حال ثبت…' : 'ثبت شیفت'}
       </button>

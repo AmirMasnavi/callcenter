@@ -1,5 +1,6 @@
 package com.elmosanatearia.callcenter.config;
 
+import com.elmosanatearia.callcenter.attendance.*;
 import com.elmosanatearia.callcenter.report.*;
 import com.elmosanatearia.callcenter.user.*;
 import org.springframework.boot.CommandLineRunner;
@@ -11,12 +12,12 @@ import java.time.*;
 import java.util.*;
 
 /**
- * Generates a few weeks of believable reports so the dashboard and charts have something
- * to draw. Development aid only.
+ * Generates a few weeks of believable reports and worked shifts, so the dashboard, charts and
+ * payroll view have something to draw. Development aid only.
  *
- * <p>Guarded three ways: the {@code app.mock-data.enabled} property (default false), a
- * check that the table is empty, and a requirement that demo users exist. It will never
- * touch a database that already holds reports.
+ * <p>Guarded by the {@code app.mock-data.enabled} property (default false) and, per operator,
+ * by a check that they have no data yet. Skipping per operator rather than per table means an
+ * operator added later still gets a history, while nobody's real records are ever touched.
  */
 @Configuration
 @ConditionalOnProperty(name = "app.mock-data.enabled", havingValue = "true")
@@ -30,10 +31,11 @@ public class MockDataSeeder {
     @Bean @Order(100)
     CommandLineRunner seedMockReports(DailyReportRepository reports, UserRepository users) {
         return args -> {
-            if (reports.count() > 0) return;  // never disturb existing data
-
-            List<AppUser> agents = users.findActiveByRole(Role.AGENT);
             List<AppUser> reviewers = users.findActiveByRole(Role.SUPERVISOR);
+            // Per agent rather than per database: an operator added later still gets a history,
+            // and one who already has reports is never touched.
+            List<AppUser> agents = users.findActiveByRole(Role.AGENT).stream()
+                    .filter(a -> !reports.existsByAgentId(a.getId())).toList();
             if (agents.isEmpty()) return;
 
             // Fixed seed: the same data every run, so screenshots and numbers are comparable.
@@ -94,11 +96,68 @@ public class MockDataSeeder {
                 }
             }
             reports.saveAll(batch);
-            System.out.printf("[mock-data] seeded %d reports across %d schools%n", batch.size(), SCHOOLS.length);
+            System.out.printf("[mock-data] seeded %d reports for %d agent(s)%n", batch.size(), agents.size());
         };
     }
 
-    private static Instant instant(LocalDate date, int hour) {
-        return date.atTime(hour, 0).atZone(ZoneId.of("Asia/Tehran")).toInstant();
+    /**
+     * Worked shifts to sit beside the reports, so the payroll view has real hours to total
+     * rather than a table of zeros.
+     *
+     * <p>Deliberately uneven: people arrive at slightly different times, some days are split
+     * into two shifts, and some days are missed entirely. A tidy 5-hours-every-day would hide
+     * exactly the arithmetic the monthly target is meant to catch.
+     */
+    @Bean @Order(110)
+    CommandLineRunner seedMockAttendance(AttendanceRepository attendance, UserRepository users) {
+        return args -> {
+            List<AppUser> agents = users.findActiveByRole(Role.AGENT).stream()
+                    .filter(a -> !attendance.existsByUserId(a.getId())).toList();
+            if (agents.isEmpty()) return;
+
+            AppUser desk = users.findByUsernameIgnoreCase("office").orElse(null);
+            if (desk == null) return;   // shifts have to be attributable to whoever recorded them
+
+            Random random = new Random(20260806L);
+            LocalDate today = LocalDate.now(ZoneId.of("Asia/Tehran"));
+            List<AttendanceEntry> batch = new ArrayList<>();
+
+            for (AppUser agent : agents) {
+                for (int dayOffset = 29; dayOffset >= 1; dayOffset--) {
+                    LocalDate date = today.minusDays(dayOffset);
+                    if (date.getDayOfWeek() == DayOfWeek.FRIDAY) continue;
+                    if (random.nextDouble() < 0.12) continue;             // absent
+
+                    int startMin = 14 * 60 + random.nextInt(40) - 15;     // around 14:00
+                    if (random.nextDouble() < 0.2) {
+                        // A split day: a break in the middle becomes two shifts on the sheet.
+                        int firstEnd = startMin + 100 + random.nextInt(40);
+                        batch.add(shift(agent, desk, date, startMin, firstEnd));
+                        int secondStart = firstEnd + 45 + random.nextInt(30);
+                        batch.add(shift(agent, desk, date, secondStart, secondStart + 120 + random.nextInt(50)));
+                    } else {
+                        batch.add(shift(agent, desk, date, startMin, startMin + 270 + random.nextInt(70)));
+                    }
+                }
+            }
+            attendance.saveAll(batch);
+            System.out.printf("[mock-data] seeded %d shifts for %d agent(s)%n", batch.size(), agents.size());
+        };
     }
+
+    private static AttendanceEntry shift(AppUser agent, AppUser desk, LocalDate date, int fromMin, int toMin) {
+        AttendanceEntry e = new AttendanceEntry(agent, atMinute(date, fromMin), desk);
+        e.setExitAt(atMinute(date, toMin));
+        return e;
+    }
+
+    private static Instant atMinute(LocalDate date, int minuteOfDay) {
+        return date.atStartOfDay(TEHRAN).plusMinutes(minuteOfDay).toInstant();
+    }
+
+    private static Instant instant(LocalDate date, int hour) {
+        return date.atTime(hour, 0).atZone(TEHRAN).toInstant();
+    }
+
+    private static final ZoneId TEHRAN = ZoneId.of("Asia/Tehran");
 }

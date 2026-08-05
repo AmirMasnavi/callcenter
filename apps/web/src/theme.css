@@ -628,7 +628,7 @@ body { background: var(--bg); color: var(--text-primary); }
 .content, .login-page, .app-shell { background: var(--bg); }
 
 /* Card-like surfaces */
-:is(.form-card, .history, .charts section, .table-card, .review-card, .login-card,
+:is(.form-card, .history, .charts section, .chart-card, .table-card, .review-card, .login-card,
     .queue button, .filters, .export button, .kpis article, .user-grid article,
     .modal form, .modal > .sheet-body, .role-option, .profile-card, .date-box,
     .pending-count, .supervisor-stats span, .supervisor-toolbar, .day-report-bar,
@@ -862,7 +862,7 @@ aside nav button { justify-content: flex-start; padding-inline: var(--space-3); 
   .page-head { gap: var(--space-3); margin-bottom: var(--space-4); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
   .profile-grid { grid-template-columns: 1fr; }
-  :is(.charts section, .table-card, .form-card, .profile-card) { padding: var(--space-4); }
+  :is(.charts section, .chart-card, .table-card, .form-card, .profile-card) { padding: var(--space-4); }
   .table-scroll { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
   .head-actions { width: 100%; }
   .head-actions button { flex: 1; }
@@ -1565,6 +1565,26 @@ label.toggle input[type='checkbox'] {
 .staff-text span { font-size: 0.75rem; color: var(--text-muted); }
 .clock-btn { flex: none; min-width: 6rem; padding: 0.55rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.8125rem; }
 
+/*
+ * On a phone, avatar + name + clock button + edit icon in one row left the name about eight
+ * characters wide: "از ۱۴ مرداد ۱۴۰۵، ۲۲:۴۲ داخل است" broke over four lines. Who the person
+ * is goes on the first row, what you can do about it on the second.
+ */
+@media (max-width: 700px) {
+  .staff-list article {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'face who edit' 'act act act';
+    gap: var(--space-2) var(--space-3);
+  }
+  .staff-list article > .avatar { grid-area: face; }
+  .staff-list article > .staff-text { grid-area: who; }
+  .staff-list article > .clock-btn { grid-area: act; width: 100%; }
+  .staff-list article > .icon-button { grid-area: edit; align-self: start; }
+  /* The status line is the point of this row, so it wraps rather than being clipped. */
+  .staff-text span { line-height: 1.45; }
+}
+
 .shift-edit-list { display: grid; gap: var(--space-3); }
 .shift-edit {
   display: grid;
@@ -1586,6 +1606,22 @@ label.toggle input[type='checkbox'] {
 .range-total { margin-inline-start: auto; text-align: center; }
 .range-total span { display: block; font-size: 0.75rem; color: var(--text-muted); }
 .range-total b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+
+/*
+ * On a phone the flex row wrapped into a ragged stack: the two date fields on separate lines
+ * with the running total marooned beside one of them, reading as if it belonged to that date.
+ * An explicit grid instead — presets across the top, the two dates paired, the total on its
+ * own line where it plainly belongs to the whole range.
+ */
+@media (max-width: 700px) {
+  .timesheet-range { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .timesheet-range .range-presets { grid-column: 1 / -1; }
+  .timesheet-range .range-presets button { flex: 1; }
+  .range-total { grid-column: 1 / -1; margin-inline-start: 0;
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-top: var(--space-2); border-top: 1px solid var(--border); }
+  .range-total span { display: inline; }
+}
 
 .timesheet-list article { display: block; padding: 0; overflow: hidden; }
 .timesheet-row {
@@ -1612,6 +1648,23 @@ label.toggle input[type='checkbox'] {
 .target-bar i.full { background: var(--success); }
 .timesheet-row .chev { font-style: normal; opacity: 0.4; flex: none; }
 
+/*
+ * Four columns do not fit a phone: the name broke over two lines and "۱ روز حضور · ۴ شیفت"
+ * over three, making every card twice as tall as it needed to be. Two rows instead — who and
+ * how long on top, the progress bar spanning the full width underneath where it is readable.
+ */
+@media (max-width: 700px) {
+  .timesheet-row { display: grid; grid-template-columns: 1fr auto auto;
+    grid-template-areas: 'who hours chev' 'bar bar bar'; gap: var(--space-2) var(--space-3); }
+  .timesheet-row .staff-text { grid-area: who; min-width: 0; }
+  .timesheet-row .staff-text b { display: block; }
+  .timesheet-row .staff-text span { display: block; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .timesheet-row .hours-cell { grid-area: hours; text-align: end; min-width: 0; }
+  .timesheet-row .chev { grid-area: chev; align-self: center; }
+  .timesheet-row .target-bar { grid-area: bar; width: 100%; }
+}
+
 .timesheet-detail { padding: 0 var(--space-4) var(--space-4); border-top: 1px solid var(--border); }
 .detail-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) 0; }
 .detail-stats div { flex: 1 1 5rem; text-align: center; padding: var(--space-2);
@@ -1624,7 +1677,7 @@ label.toggle input[type='checkbox'] {
   .app-shell > aside, .bottom-nav, .mobile-header, .content-edge,
   .head-actions, .toolbar, .banner, .impersonation-bar { display: none !important; }
   .content { padding: 0; margin: 0; }
-  .timesheet-detail, .table-card, .staff-list article { break-inside: avoid; }
+  .table-card, .staff-list article { break-inside: avoid; }
   body { background: #fff; }
 }
 .day-picker { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-2); }
@@ -1634,6 +1687,33 @@ label.toggle input[type='checkbox'] {
 .time-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .equation b { font-variant-numeric: tabular-nums; }
 
+/* What is already recorded for the chosen day — the guard against filing a shift twice. */
+.existing-shifts { margin-top: var(--space-3); padding: var(--space-3);
+  background: var(--warning-tint); border-radius: var(--radius-sm); font-size: 0.8125rem; }
+.existing-shifts > span { display: block; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: var(--space-1); }
+.existing-shifts ul { margin: 0; padding-inline-start: 1.1rem; color: var(--text-primary); }
+.existing-shifts li { font-variant-numeric: tabular-nums; }
+
+/* Destructive confirmation stays inline: a second dialog over a sheet is a stack too deep. */
+.confirm-row { align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.confirm-row > span { flex: 1; font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
+
+/* An icon alone did not say what "print" produced, and on a phone these buttons stretch to
+   full width — an enormous target with one small glyph in it. The word rides along always. */
+.head-actions .icon-button { width: auto; padding-inline: var(--space-3); gap: var(--space-2); }
+.head-actions .icon-button .btn-label { font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+
+/* Segmented filters were 38px tall — under the 44px a thumb needs, and these are the
+   controls people tap most on the reporting screens. Only on touch: a mouse does fine at 38. */
+@media (max-width: 900px) {
+  .segmented button { min-height: var(--tap-target); }
+}
+
+/* A chart that owns the full width of the page rather than sharing a grid row. */
+.chart-card { padding: var(--space-5); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-bottom: var(--space-4); }
+
 /* Quick pay-period ranges. */
 .range-presets { flex: none; }
 .range-presets button { padding: 0.4rem 0.75rem; font-size: 0.8125rem; }
@@ -1642,15 +1722,22 @@ label.toggle input[type='checkbox'] {
 .printable { display: none; }
 .print-loading { padding: var(--space-4); color: var(--text-muted); }
 
+@page { margin: 14mm 12mm; }
+
 @media print {
   /* Everything except the form itself comes off the page. */
   body > #root > .app-shell > *:not(.content) { display: none !important; }
   .content > .page > *:not(.printable) { display: none !important; }
   .printable { display: block !important; }
 
-  .print-sheet { break-after: page; padding: 0; color: #000; }
+  /* Print is always on white paper, whatever theme the screen is in. */
+  :root { color-scheme: light; }
+  .printable, .printable * { color: #000; background: transparent; }
+
+  .print-sheet { break-after: page; padding: 0; }
   .print-sheet:last-child { break-after: auto; }
   .print-sheet h2 { margin: 0 0 0.25rem; font-size: 16pt; }
+  .print-purpose { font-size: 9pt; color: #444 !important; margin: 0 0 0.5rem; }
   .print-meta { display: flex; gap: 2rem; font-size: 10pt; margin-bottom: 0.75rem; }
   .print-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }
   .print-sheet th, .print-sheet td {
@@ -1658,7 +1745,11 @@ label.toggle input[type='checkbox'] {
     padding: 4px 6px;
     text-align: center;
   }
-  .print-sheet thead th { background: #eee; }
+  /* A month of shifts spills over a page; the header has to come with it. */
+  .print-sheet thead { display: table-header-group; }
+  .print-sheet tfoot { display: table-footer-group; }
+  .print-sheet tr { break-inside: avoid; }
+  .print-sheet thead th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .sign-cell { min-width: 4rem; }
   .print-signoff { display: flex; justify-content: space-between; margin-top: 1.5rem; font-size: 10pt; }
 }

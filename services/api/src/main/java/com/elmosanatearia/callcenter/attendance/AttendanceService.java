@@ -101,8 +101,7 @@ public class AttendanceService {
             throw new IllegalStateException("این نفر هنوز خروج نزده است؛ ابتدا خروج را ثبت کنید");
         });
         Instant moment = at == null ? Instant.now() : at;
-        if (moment.isAfter(Instant.now().plus(Duration.ofMinutes(5))))
-            throw new IllegalArgumentException("زمان ورود نمی‌تواند در آینده باشد");
+        validateShift(moment, null);
 
         AppUser recorder = users.findById(actor.id()).orElseThrow();
         AttendanceEntry saved = attendance.save(new AttendanceEntry(user, moment, recorder));
@@ -121,12 +120,8 @@ public class AttendanceService {
     @Transactional
     public EntryView recordManual(Long userId, Instant entryAt, Instant exitAt, String note, AppPrincipal actor) {
         AppUser user = users.findById(userId).orElseThrow(() -> new IllegalArgumentException("کاربر یافت نشد"));
-        if (entryAt == null) throw new IllegalArgumentException("زمان ورود الزامی است");
         if (exitAt == null) throw new IllegalArgumentException("زمان خروج الزامی است");
-        if (!exitAt.isAfter(entryAt)) throw new IllegalArgumentException("زمان خروج باید بعد از زمان ورود باشد");
-        if (entryAt.isAfter(Instant.now())) throw new IllegalArgumentException("زمان ورود نمی‌تواند در آینده باشد");
-        if (Duration.between(entryAt, exitAt).toHours() > 24)
-            throw new IllegalArgumentException("مدت یک شیفت نمی‌تواند بیش از ۲۴ ساعت باشد");
+        validateShift(entryAt, exitAt);
 
         AppUser recorder = users.findById(actor.id()).orElseThrow();
         AttendanceEntry entry = new AttendanceEntry(user, entryAt, recorder);
@@ -144,8 +139,7 @@ public class AttendanceService {
                 .orElseThrow(() -> new IllegalArgumentException("رکورد یافت نشد"));
         if (!entry.isOpen()) throw new IllegalStateException("خروج این رکورد قبلاً ثبت شده است");
         Instant moment = at == null ? Instant.now() : at;
-        if (!moment.isAfter(entry.getEntryAt()))
-            throw new IllegalArgumentException("زمان خروج باید بعد از زمان ورود باشد");
+        validateShift(entry.getEntryAt(), moment);
 
         entry.setExitAt(moment);
         AppUser recorder = users.findById(actor.id()).orElseThrow();
@@ -154,15 +148,28 @@ public class AttendanceService {
         return EntryView.of(attendance.save(entry));
     }
 
+    private void validateShift(Instant entryAt, Instant exitAt) {
+        ShiftRules.validate(entryAt, exitAt, Instant.now());
+    }
+
     /** Corrections. The paper form gets amended too; the audit log keeps the history. */
     @Transactional
     public EntryView adjust(Long entryId, Instant entryAt, Instant exitAt, String note, AppPrincipal actor) {
         AttendanceEntry entry = attendance.findById(entryId)
                 .orElseThrow(() -> new IllegalArgumentException("رکورد یافت نشد"));
-        if (entryAt != null) entry.setEntryAt(entryAt);
+
+        Instant newEntry = entryAt != null ? entryAt : entry.getEntryAt();
+        // Clearing the exit of a finished shift puts the person back "in the building". That is a
+        // legitimate correction only if they have no other shift running, otherwise it breaks the
+        // one-open-shift rule and surfaces as a constraint violation rather than a message.
+        if (exitAt == null && !entry.isOpen())
+            attendance.findByUserIdAndExitAtIsNull(entry.getUser().getId()).ifPresent(open -> {
+                throw new IllegalStateException("این نفر شیفت باز دیگری دارد؛ ابتدا آن را ببندید");
+            });
+        validateShift(newEntry, exitAt);
+
+        entry.setEntryAt(newEntry);
         entry.setExitAt(exitAt);
-        if (exitAt != null && !exitAt.isAfter(entry.getEntryAt()))
-            throw new IllegalArgumentException("زمان خروج باید بعد از زمان ورود باشد");
         entry.setNote(note == null || note.isBlank() ? null : note.trim());
         AppUser recorder = users.findById(actor.id()).orElseThrow();
         audits.save(new AuditEvent(recorder, "ATTENDANCE_ADJUST", "AttendanceEntry", String.valueOf(entryId), null));
@@ -217,7 +224,14 @@ public class AttendanceService {
 
         int defaultTarget = settings.getInt("attendance.default-monthly-hours", DEFAULT_MONTHLY_HOURS);
 
-        return users.findActiveByRole(Role.AGENT).stream().map(u -> {
+        // Active operators, plus anyone who actually worked in the range. Someone who left
+        // mid-period is still owed their hours, and payroll has to be able to print them —
+        // filtering to active users alone would make those hours unreachable.
+        Map<Long, AppUser> people = new LinkedHashMap<>();
+        users.findActiveByRole(Role.AGENT).forEach(u -> people.put(u.getId(), u));
+        shifts.values().forEach(list -> list.forEach(e -> people.putIfAbsent(e.getUser().getId(), e.getUser())));
+
+        return people.values().stream().map(u -> {
             List<AttendanceEntry> mine = shifts.getOrDefault(u.getId(), List.of());
             long minutes = mine.stream().mapToLong(AttendanceEntry::workedMinutes).sum();
             int days = (int) mine.stream()
@@ -241,17 +255,45 @@ public class AttendanceService {
     /** One person, day by day — the on-screen equivalent of their paper sheet. */
     @Transactional(readOnly = true)
     public StaffDetail detail(Long userId, LocalDate from, LocalDate to) {
-        List<EntryView> entries = entriesFor(userId, from, to);
-        Map<LocalDate, List<EntryView>> byDay = new TreeMap<>(Comparator.reverseOrder());
-        entries.forEach(e -> byDay.computeIfAbsent(LocalDate.ofInstant(e.entryAt(), ZONE),
-                k -> new ArrayList<>()).add(e));
-        List<DayRow> days = byDay.entrySet().stream()
-                .map(e -> new DayRow(e.getKey(),
-                        e.getValue().stream().mapToLong(EntryView::workedMinutes).sum(), e.getValue()))
-                .toList();
         StaffSummary summary = report(from, to).stream()
                 .filter(s -> s.userId().equals(userId)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("کاربر یافت نشد"));
-        return new StaffDetail(summary, days);
+        return new StaffDetail(summary, groupByDay(entriesFor(userId, from, to)));
+    }
+
+    /**
+     * Everyone's sheet in one call.
+     *
+     * <p>Printing or exporting used to ask for each person separately, and every one of those
+     * recomputed the whole report — quadratic in headcount for data already in hand. This walks
+     * the range once and hands back the same shape.
+     */
+    @Transactional(readOnly = true)
+    public List<StaffDetail> details(LocalDate from, LocalDate to) {
+        List<StaffSummary> summaries = report(from, to);
+        Map<Long, List<EntryView>> byUser = new HashMap<>();
+        attendance.between(from.atStartOfDay(ZONE).toInstant(),
+                        to.plusDays(1).atStartOfDay(ZONE).toInstant())
+                .forEach(e -> byUser.computeIfAbsent(e.getUser().getId(), k -> new ArrayList<>())
+                        .add(EntryView.of(e)));
+
+        return summaries.stream()
+                .map(s -> new StaffDetail(s, groupByDay(byUser.getOrDefault(s.userId(), List.of()))))
+                .toList();
+    }
+
+    /** Newest day first — the correction someone is looking for is almost always a recent one. */
+    private List<DayRow> groupByDay(List<EntryView> entries) {
+        Map<LocalDate, List<EntryView>> byDay = new TreeMap<>(Comparator.reverseOrder());
+        entries.forEach(e -> byDay.computeIfAbsent(LocalDate.ofInstant(e.entryAt(), ZONE),
+                k -> new ArrayList<>()).add(e));
+        return byDay.entrySet().stream()
+                .map(e -> {
+                    List<EntryView> shifts = new ArrayList<>(e.getValue());
+                    shifts.sort(Comparator.comparing(EntryView::entryAt));
+                    return new DayRow(e.getKey(),
+                            shifts.stream().mapToLong(EntryView::workedMinutes).sum(), shifts);
+                })
+                .toList();
     }
 }

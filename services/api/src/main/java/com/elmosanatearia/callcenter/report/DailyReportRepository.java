@@ -4,6 +4,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.*;
 public interface DailyReportRepository extends JpaRepository<DailyReport,Long>{
+
+    boolean existsByAgentId(Long agentId);
  List<DailyReport> findByAgentIdAndVoidedAtIsNullAndArchivedAtIsNullOrderByReportDateDescCreatedAtDesc(Long agentId);
 
  @Query("select r from DailyReport r join fetch r.agent a where r.status=:status and a.supervisor.id=:supervisor and r.voidedAt is null and r.archivedAt is null order by r.submittedAt desc")

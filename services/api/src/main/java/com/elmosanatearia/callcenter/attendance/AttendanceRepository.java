@@ -12,6 +12,8 @@ public interface AttendanceRepository extends JpaRepository<AttendanceEntry, Lon
 
     Optional<AttendanceEntry> findByUserIdAndExitAtIsNull(Long userId);
 
+    boolean existsByUserId(Long userId);
+
     /** Everything overlapping a window, used for both the day view and range reports. */
     @Query("select e from AttendanceEntry e join fetch e.user u where e.entryAt >= :from and e.entryAt < :to order by e.entryAt desc")
     List<AttendanceEntry> between(@Param("from") Instant from, @Param("to") Instant to);

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, apiUrl, fa, faDate } from '../lib/api';
 import Loading from '../components/Loading';
 import Icon from '../components/Icon';
-import JalaliDate from '../components/JalaliDate';
+import JalaliDate, { todayIso } from '../components/JalaliDate';
+import { DateObject } from 'react-multi-date-picker';
+import gregorian from 'react-date-object/calendars/gregorian';
 import { asHours } from './AttendancePage';
 import { chartBase, useChartTheme } from '../lib/chartTheme';
 import ReactECharts from 'echarts-for-react';
@@ -17,8 +19,16 @@ interface StaffSummary {
 interface DayRow { date: string; workedMinutes: number; shifts: { id: number; entryAt: string; exitAt: string | null; workedMinutes: number; note: string | null }[] }
 interface StaffDetail { summary: StaffSummary; days: DayRow[] }
 
-const daysAgoIso = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
-const todayIso = () => new Date().toISOString().slice(0, 10);
+/*
+ * Ranges are anchored to Tehran's date, not the browser's UTC one. After 20:30 UTC it is
+ * already tomorrow in Tehran, so toISOString() would end the range yesterday — quietly
+ * dropping the current day's shifts and leaving no preset looking selected.
+ */
+const daysAgoIso = (n: number) => {
+  const d = new DateObject({ date: todayIso(), format: 'YYYY-MM-DD', calendar: gregorian });
+  d.subtract(n, 'days');
+  return d.format('YYYY-MM-DD');
+};
 
 /* Payroll works in fixed windows, so the common ones are one tap rather than two date
    pickers. "۳۰ روز" is the pay period; "۱۰ روز" is the mid-period check. */
@@ -41,6 +51,7 @@ export default function TimesheetPage() {
   const [to, setTo] = useState(todayIso());
   const [openUser, setOpenUser] = useState<number>();
   const [printing, setPrinting] = useState(false);
+  const stopPrinting = useCallback(() => setPrinting(false), []);
   const ct = useChartTheme(), base = chartBase(ct);
 
   const q = useQuery({
@@ -55,8 +66,12 @@ export default function TimesheetPage() {
     ...base,
     tooltip: { ...base.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { ...base.legend, top: 0 },
-    grid: { left: 12, right: 20, top: 44, bottom: 12, containLabel: true },
-    xAxis: { ...base.valueAxis, type: 'value', name: 'ساعت' },
+    grid: { left: 12, right: 24, top: 48, bottom: 28, containLabel: true },
+    // The axis name sat at the far end and got clipped; centred under the axis it reads.
+    xAxis: {
+      ...base.valueAxis, type: 'value',
+      name: 'ساعت', nameLocation: 'middle', nameGap: 28,
+    },
     yAxis: { ...base.categoryAxis, type: 'category', data: rows.map(r => r.displayName).reverse() },
     series: [
       { name: 'ساعات کارکرد', type: 'bar',
@@ -77,12 +92,15 @@ export default function TimesheetPage() {
           <p>ساعات واقعی کارکرد و عملکرد تماس‌ها در یک بازه.</p>
         </div>
         <div className="head-actions">
-          <button className="icon-button" title="چاپ فرم حضور و غیاب" onClick={() => setPrinting(true)}>
-            <Icon name="sheet" label="چاپ فرم حضور و غیاب" />
+          <button className="icon-button" title="فرم امضای پرسنل برای پرونده حقوق — یک برگ برای هر نفر"
+                  onClick={() => setPrinting(true)}>
+            <Icon name="sheet" label="چاپ فرم امضا" />
+            <span className="btn-label">چاپ فرم امضا</span>
           </button>
-          <button className="icon-button" title="خروجی Excel"
+          <button className="icon-button" title="همان جدول‌ها در قالب Excel، برای محاسبه"
                   onClick={() => window.open(apiUrl(`/api/v1/attendance/report.xlsx?from=${from}&to=${to}`))}>
             <Icon name="download" label="خروجی Excel" />
+            <span className="btn-label">Excel</span>
           </button>
         </div>
       </header>
@@ -106,14 +124,16 @@ export default function TimesheetPage() {
         </div>
       </section>
 
-      {printing && <PrintableTimesheet rows={rows} from={from} to={to} onDone={() => setPrinting(false)} />}
+      {printing && <PrintableTimesheet from={from} to={to} onDone={stopPrinting} />}
 
       {q.isLoading ? <Loading /> : (
         <>
-          <section className="charts">
+          {/* Its own card, full width. The dashboard's .charts grid puts two panels side by
+              side, which squeezed this one into a third of the page. */}
+          <section className="chart-card">
             <div className="section-title"><b>کارکرد در برابر سقف</b><span>{faDate(from)} تا {faDate(to)}</span></div>
             {rows.length
-              ? <ReactECharts option={chart} style={{ height: Math.max(220, rows.length * 46) }} notMerge />
+              ? <ReactECharts option={chart} style={{ height: Math.max(220, rows.length * 52) }} notMerge />
               : <div className="empty compact">در این بازه ساعتی ثبت نشده است.</div>}
           </section>
 
@@ -198,38 +218,43 @@ function StaffDetailView({ userId, from, to, summary }: { userId: number; from: 
  * the daily total, the period total against their target, and a signature column, so it
  * can go straight into a payroll file.
  */
-function PrintableTimesheet({ rows, from, to, onDone }: {
-  rows: StaffSummary[]; from: string; to: string; onDone: () => void;
-}) {
+function PrintableTimesheet({ from, to, onDone }: { from: string; to: string; onDone: () => void }) {
   const details = useQuery({
-    queryKey: ['print-timesheet', from, to, rows.map(r => r.userId).join(',')],
-    queryFn: async () => {
-      const all = await Promise.all(rows.map(r =>
-        api<StaffDetail>(`/api/v1/attendance/report/${r.userId}?from=${from}&to=${to}`)));
-      return all;
-    },
-    enabled: rows.length > 0,
+    queryKey: ['print-timesheet', from, to],
+    queryFn: () => api<StaffDetail[]>(`/api/v1/attendance/report/details?from=${from}&to=${to}`),
   });
 
-  // Print only once the data is actually on the page — printing early yields blank sheets.
   const ready = details.isSuccess;
-  useState(() => undefined);
-  if (ready && !(window as any).__printed) {
-    (window as any).__printed = true;
-    setTimeout(() => { window.print(); (window as any).__printed = false; onDone(); }, 300);
-  }
+  // Print once the sheets are actually painted — firing earlier gives blank pages. Two frames
+  // is the reliable signal that layout has run; a timeout is a guess about how slow the device is.
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (cancelled) return;
+      window.print();
+      onDone();
+    }));
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+  }, [ready, onDone]);
 
+  if (details.isError) return <div className="print-loading">آماده‌سازی فرم ناموفق بود.</div>;
   if (!ready) return <div className="print-loading">در حال آماده‌سازی فرم…</div>;
 
   return (
     <div className="printable">
-      {details.data!.map(d => (
+      {details.data.map(d => (
         <section key={d.summary.userId} className="print-sheet">
           <header>
-            <h2>فرم حضور و غیاب</h2>
+            <h2>فرم حضور و غیاب — علم و صنعت آریا</h2>
+            {/* Says on the page what the page is for, so nobody has to ask. */}
+            <p className="print-purpose">
+              مبنای محاسبه حقوق این بازه. پس از امضای پرسنل و مسئول دفتر، در پرونده بایگانی می‌شود.
+            </p>
             <div className="print-meta">
               <span><b>پرسنل:</b> {d.summary.displayName}</span>
               <span><b>بازه:</b> {faDate(from)} تا {faDate(to)}</span>
+              <span><b>روزهای حضور:</b> {fa(d.summary.daysPresent)}</span>
             </div>
           </header>
 
@@ -263,6 +288,7 @@ function PrintableTimesheet({ rows, from, to, onDone }: {
           <footer className="print-signoff">
             <span>امضای پرسنل: ....................</span>
             <span>امضای مسئول دفتر: ....................</span>
+            <span>تاریخ: ....................</span>
           </footer>
         </section>
       ))}
