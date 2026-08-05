@@ -1429,11 +1429,18 @@ label.toggle input[type='checkbox'] {
   inset-inline: 0;
   top: 0;
   z-index: 300;              /* above the sidebar and every sheet */
-  height: var(--impersonation-height);
-  padding-inline: var(--space-4);
+  min-height: var(--impersonation-height);
+  height: auto;              /* the sentence wraps on a phone — a fixed height clipped it */
+  padding: var(--space-2) var(--space-4);
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+  flex-wrap: wrap;
+  text-align: center;
+  line-height: 1.4;
 }
-.app-shell.impersonating { padding-top: var(--impersonation-height); }
-.app-shell.impersonating > aside { top: var(--impersonation-height); }
+.impersonation-bar button { flex: none; white-space: nowrap; }
+/* Offset follows the bar's measured height (set in App.tsx), not a guess. */
+.app-shell.impersonating { padding-top: var(--impersonation-offset, var(--impersonation-height)); }
+.app-shell.impersonating > aside { top: var(--impersonation-offset, var(--impersonation-height)); }
 @media (max-width: 900px) {
   /* The sheet and modal chrome must clear it too. */
   .app-shell.impersonating ~ .modal .sheet-body,
@@ -1619,4 +1626,39 @@ label.toggle input[type='checkbox'] {
   .content { padding: 0; margin: 0; }
   .timesheet-detail, .table-card, .staff-list article { break-inside: avoid; }
   body { background: #fff; }
+}
+.day-picker { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-2); }
+.day-picker input { display: block; width: 100%; margin-top: var(--space-1); min-height: var(--tap-target);
+  padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-primary); }
+.time-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.equation b { font-variant-numeric: tabular-nums; }
+
+/* Quick pay-period ranges. */
+.range-presets { flex: none; }
+.range-presets button { padding: 0.4rem 0.75rem; font-size: 0.8125rem; }
+
+/* The printable form is hidden on screen and is the ONLY thing printed. */
+.printable { display: none; }
+.print-loading { padding: var(--space-4); color: var(--text-muted); }
+
+@media print {
+  /* Everything except the form itself comes off the page. */
+  body > #root > .app-shell > *:not(.content) { display: none !important; }
+  .content > .page > *:not(.printable) { display: none !important; }
+  .printable { display: block !important; }
+
+  .print-sheet { break-after: page; padding: 0; color: #000; }
+  .print-sheet:last-child { break-after: auto; }
+  .print-sheet h2 { margin: 0 0 0.25rem; font-size: 16pt; }
+  .print-meta { display: flex; gap: 2rem; font-size: 10pt; margin-bottom: 0.75rem; }
+  .print-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .print-sheet th, .print-sheet td {
+    border: 1px solid #444;
+    padding: 4px 6px;
+    text-align: center;
+  }
+  .print-sheet thead th { background: #eee; }
+  .sign-cell { min-width: 4rem; }
+  .print-signoff { display: flex; justify-content: space-between; margin-top: 1.5rem; font-size: 10pt; }
 }

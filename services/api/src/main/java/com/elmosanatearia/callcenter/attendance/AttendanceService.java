@@ -110,6 +110,34 @@ public class AttendanceService {
         return EntryView.of(saved);
     }
 
+    /**
+     * A whole shift recorded after the fact — someone forgot to check in, or the desk was
+     * unattended. Without this the only way to record anything was "now", which meant a
+     * missed arrival could never be entered at all.
+     *
+     * <p>Deliberately does NOT collide with the one-open-shift rule: this always creates a
+     * closed shift, so it can be added while the person is currently clocked in.
+     */
+    @Transactional
+    public EntryView recordManual(Long userId, Instant entryAt, Instant exitAt, String note, AppPrincipal actor) {
+        AppUser user = users.findById(userId).orElseThrow(() -> new IllegalArgumentException("کاربر یافت نشد"));
+        if (entryAt == null) throw new IllegalArgumentException("زمان ورود الزامی است");
+        if (exitAt == null) throw new IllegalArgumentException("زمان خروج الزامی است");
+        if (!exitAt.isAfter(entryAt)) throw new IllegalArgumentException("زمان خروج باید بعد از زمان ورود باشد");
+        if (entryAt.isAfter(Instant.now())) throw new IllegalArgumentException("زمان ورود نمی‌تواند در آینده باشد");
+        if (Duration.between(entryAt, exitAt).toHours() > 24)
+            throw new IllegalArgumentException("مدت یک شیفت نمی‌تواند بیش از ۲۴ ساعت باشد");
+
+        AppUser recorder = users.findById(actor.id()).orElseThrow();
+        AttendanceEntry entry = new AttendanceEntry(user, entryAt, recorder);
+        entry.setExitAt(exitAt);
+        entry.setNote(note == null || note.isBlank() ? null : note.trim());
+        AttendanceEntry saved = attendance.save(entry);
+        audits.save(new AuditEvent(recorder, "ATTENDANCE_MANUAL", "AppUser", String.valueOf(userId),
+                saved.workedMinutes() + " دقیقه"));
+        return EntryView.of(saved);
+    }
+
     @Transactional
     public EntryView clockOut(Long entryId, Instant at, AppPrincipal actor) {
         AttendanceEntry entry = attendance.findById(entryId)

@@ -19,6 +19,14 @@ interface StaffDetail { summary: StaffSummary; days: DayRow[] }
 
 const daysAgoIso = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/* Payroll works in fixed windows, so the common ones are one tap rather than two date
+   pickers. "۳۰ روز" is the pay period; "۱۰ روز" is the mid-period check. */
+const PRESETS: { label: string; days: number }[] = [
+  { label: '۱۰ روز', days: 9 },
+  { label: '۱۵ روز', days: 14 },
+  { label: '۳۰ روز', days: 29 },
+];
 const timeOf = (iso: string) => new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' }).format(new Date(iso));
 
 /*
@@ -32,6 +40,7 @@ export default function TimesheetPage() {
   const [from, setFrom] = useState(daysAgoIso(29));
   const [to, setTo] = useState(todayIso());
   const [openUser, setOpenUser] = useState<number>();
+  const [printing, setPrinting] = useState(false);
   const ct = useChartTheme(), base = chartBase(ct);
 
   const q = useQuery({
@@ -68,8 +77,8 @@ export default function TimesheetPage() {
           <p>ساعات واقعی کارکرد و عملکرد تماس‌ها در یک بازه.</p>
         </div>
         <div className="head-actions">
-          <button className="icon-button" title="چاپ" onClick={() => window.print()}>
-            <Icon name="sheet" label="چاپ" />
+          <button className="icon-button" title="چاپ فرم حضور و غیاب" onClick={() => setPrinting(true)}>
+            <Icon name="sheet" label="چاپ فرم حضور و غیاب" />
           </button>
           <button className="icon-button" title="خروجی Excel"
                   onClick={() => window.open(apiUrl(`/api/v1/attendance/report.xlsx?from=${from}&to=${to}`))}>
@@ -79,12 +88,25 @@ export default function TimesheetPage() {
       </header>
 
       <section className="toolbar timesheet-range">
+        <div className="segmented range-presets">
+          {PRESETS.map(p => {
+            const active = from === daysAgoIso(p.days) && to === todayIso();
+            return (
+              <button key={p.days} className={active ? 'active' : ''}
+                      onClick={() => { setFrom(daysAgoIso(p.days)); setTo(todayIso()); }}>
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
         <label>از<JalaliDate value={from} onChange={setFrom} max={false} /></label>
         <label>تا<JalaliDate value={to} onChange={setTo} /></label>
         <div className="range-total">
           <span>جمع کل</span><b>{asHours(totalMinutes)}</b>
         </div>
       </section>
+
+      {printing && <PrintableTimesheet rows={rows} from={from} to={to} onDone={() => setPrinting(false)} />}
 
       {q.isLoading ? <Loading /> : (
         <>
@@ -164,6 +186,86 @@ function StaffDetailView({ userId, from, to, summary }: { userId: number; from: 
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The printable timesheet — the paper form, filled in.
+ *
+ * A plain window.print() of the dashboard prints charts and chrome, which is no use to
+ * anyone. This renders one signed sheet per person: every day in the period, their shifts,
+ * the daily total, the period total against their target, and a signature column, so it
+ * can go straight into a payroll file.
+ */
+function PrintableTimesheet({ rows, from, to, onDone }: {
+  rows: StaffSummary[]; from: string; to: string; onDone: () => void;
+}) {
+  const details = useQuery({
+    queryKey: ['print-timesheet', from, to, rows.map(r => r.userId).join(',')],
+    queryFn: async () => {
+      const all = await Promise.all(rows.map(r =>
+        api<StaffDetail>(`/api/v1/attendance/report/${r.userId}?from=${from}&to=${to}`)));
+      return all;
+    },
+    enabled: rows.length > 0,
+  });
+
+  // Print only once the data is actually on the page — printing early yields blank sheets.
+  const ready = details.isSuccess;
+  useState(() => undefined);
+  if (ready && !(window as any).__printed) {
+    (window as any).__printed = true;
+    setTimeout(() => { window.print(); (window as any).__printed = false; onDone(); }, 300);
+  }
+
+  if (!ready) return <div className="print-loading">در حال آماده‌سازی فرم…</div>;
+
+  return (
+    <div className="printable">
+      {details.data!.map(d => (
+        <section key={d.summary.userId} className="print-sheet">
+          <header>
+            <h2>فرم حضور و غیاب</h2>
+            <div className="print-meta">
+              <span><b>پرسنل:</b> {d.summary.displayName}</span>
+              <span><b>بازه:</b> {faDate(from)} تا {faDate(to)}</span>
+            </div>
+          </header>
+
+          <table>
+            <thead>
+              <tr><th>تاریخ</th><th>ساعت ورود</th><th>ساعت خروج</th><th>مدت</th><th>توضیحات</th><th>امضا</th></tr>
+            </thead>
+            <tbody>
+              {d.days.length ? d.days.flatMap(day => day.shifts.map((s, i) => (
+                <tr key={s.id}>
+                  <td>{i === 0 ? faDate(day.date) : ''}</td>
+                  <td>{timeOf(s.entryAt)}</td>
+                  <td>{s.exitAt ? timeOf(s.exitAt) : '—'}</td>
+                  <td>{asHours(s.workedMinutes)}</td>
+                  <td>{s.note || ''}</td>
+                  <td className="sign-cell" />
+                </tr>
+              ))) : <tr><td colSpan={6}>در این بازه حضوری ثبت نشده است.</td></tr>}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={3}><b>جمع کل</b></td>
+                <td><b>{asHours(d.summary.workedMinutes)}</b></td>
+                <td colSpan={2}>
+                  از {fa(d.summary.targetHours)} ساعت ({fa(Math.round(d.summary.targetPercent))}٪)
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <footer className="print-signoff">
+            <span>امضای پرسنل: ....................</span>
+            <span>امضای مسئول دفتر: ....................</span>
+          </footer>
+        </section>
+      ))}
     </div>
   );
 }

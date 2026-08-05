@@ -66,6 +66,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/schools").authenticated()
                 // Recording is the front desk; the report side is payroll.
                 .requestMatchers("/api/v1/attendance/today", "/api/v1/attendance/*/in",
+                                 "/api/v1/attendance/*/manual", "/api/v1/attendance/*/entries",
                                  "/api/v1/attendance/entries/**").hasAuthority("PERM_RECORD_ATTENDANCE")
                 .requestMatchers("/api/v1/attendance/report/**", "/api/v1/attendance/report",
                                  "/api/v1/attendance/report.xlsx").hasAuthority("PERM_VIEW_ATTENDANCE")

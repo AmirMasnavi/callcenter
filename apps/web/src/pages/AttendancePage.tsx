@@ -38,6 +38,7 @@ export default function AttendancePage() {
   });
   const [query, setQuery] = useState('');
   const [adjusting, setAdjusting] = useState<StaffState>();
+  const [manualFor, setManualFor] = useState<StaffState | null>();
   const [error, setError] = useState('');
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['attendance-today'] });
@@ -64,8 +65,15 @@ export default function AttendancePage() {
           <h1>ورود و خروج پرسنل</h1>
           <p>زمان با یک لمس ثبت می‌شود و در صورت نیاز قابل اصلاح است.</p>
         </div>
-        <div className="attendance-count">
-          <b>{fa(inBuilding)}</b><span>نفر حاضر</span>
+        <div className="head-actions">
+          <div className="attendance-count">
+            <b>{fa(inBuilding)}</b><span>نفر حاضر</span>
+          </div>
+          {/* Someone forgets to check in, or the desk is unattended — the day still has to
+              be recordable afterwards. */}
+          <button className="secondary" onClick={() => setManualFor(shown[0] ?? null)}>
+            <Icon name="plus" size={16} /><span>ثبت دستی</span>
+          </button>
         </div>
       </header>
 
@@ -117,6 +125,11 @@ export default function AttendancePage() {
         <AdjustSheet staff={adjusting} onClose={() => setAdjusting(undefined)}
                      onSaved={() => { setAdjusting(undefined); refresh(); }} />
       )}
+      {manualFor !== undefined && (
+        <ManualSheet staff={manualFor} everyone={q.data ?? []}
+                     onClose={() => setManualFor(undefined)}
+                     onSaved={() => { setManualFor(undefined); refresh(); }} />
+      )}
     </div>
   );
 }
@@ -126,11 +139,11 @@ interface EntryView {
 }
 
 function AdjustSheet({ staff, onClose, onSaved }: { staff: StaffState; onClose: () => void; onSaved: () => void }) {
-  const today = new Date().toISOString().slice(0, 10);
+  // Corrections are rarely for today — a missed day is usually noticed later.
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const q = useQuery({
-    queryKey: ['attendance-entries', staff.userId, today],
-    queryFn: (): Promise<EntryView[]> => api<any>(`/api/v1/attendance/report/${staff.userId}?from=${today}&to=${today}`)
-      .then((d: any) => (d.days ?? []).flatMap((day: any) => day.shifts as EntryView[])),
+    queryKey: ['attendance-entries', staff.userId, date],
+    queryFn: () => api<EntryView[]>(`/api/v1/attendance/${staff.userId}/entries?date=${date}`),
   });
   const [error, setError] = useState('');
   const qc = useQueryClient();
@@ -158,7 +171,11 @@ function AdjustSheet({ staff, onClose, onSaved }: { staff: StaffState; onClose: 
   return (
     <Sheet onClose={onClose} labelledBy="adjust-title">
       <h2 id="adjust-title">اصلاح زمان — {staff.displayName}</h2>
-      <p className="hint">شیفت‌های امروز. زمان‌ها را می‌توانید دقیقه‌به‌دقیقه تنظیم کنید.</p>
+      <label className="day-picker">تاریخ
+        <input type="date" value={date} max={new Date().toISOString().slice(0, 10)}
+               onChange={e => setDate(e.target.value)} />
+      </label>
+      <p className="hint">زمان‌ها را می‌توانید دقیقه‌به‌دقیقه تنظیم کنید.</p>
       {error && <div className="error">{error}</div>}
       {q.isLoading ? <Loading /> : (
         <div className="shift-edit-list">
@@ -166,7 +183,7 @@ function AdjustSheet({ staff, onClose, onSaved }: { staff: StaffState; onClose: 
             <ShiftRow key={e.id} entry={e}
                       onSave={(entryAt, exitAt, note) => save.mutate({ id: e.id, entryAt, exitAt, note })}
                       onDelete={() => remove.mutate(e.id)} busy={save.isPending || remove.isPending} />
-          )) : <div className="empty compact">امروز شیفتی ثبت نشده است.</div>}
+          )) : <div className="empty compact">در این روز شیفتی ثبت نشده است.</div>}
         </div>
       )}
     </Sheet>
@@ -195,5 +212,89 @@ function ShiftRow({ entry, onSave, onDelete, busy }: {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Records a whole shift after the fact.
+ *
+ * Defaults to today with a plausible shift so the common case is two taps, but every field
+ * is editable — the point of this sheet is that the desk was not there when it happened.
+ */
+function ManualSheet({ staff, everyone, onClose, onSaved }: {
+  staff: StaffState | null;
+  everyone: StaffState[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [userId, setUserId] = useState(staff?.userId ?? everyone[0]?.userId ?? 0);
+  const [date, setDate] = useState(today);
+  const [entryTime, setEntryTime] = useState('14:00');
+  const [exitTime, setExitTime] = useState('19:00');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+
+  const save = useMutation({
+    mutationFn: () => api(`/api/v1/attendance/${userId}/manual`, {
+      method: 'POST',
+      body: JSON.stringify({
+        // Built in local time, so what the desk typed is what gets stored.
+        entryAt: new Date(`${date}T${entryTime}`).toISOString(),
+        exitAt: new Date(`${date}T${exitTime}`).toISOString(),
+        note: note || null,
+      }),
+    }),
+    onSuccess: onSaved,
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const minutes = (() => {
+    const a = new Date(`${date}T${entryTime}`).getTime();
+    const b = new Date(`${date}T${exitTime}`).getTime();
+    return b > a ? Math.round((b - a) / 60000) : 0;
+  })();
+
+  return (
+    <Sheet onClose={onClose} labelledBy="manual-title">
+      <h2 id="manual-title">ثبت دستی ورود و خروج</h2>
+      <p className="hint">برای روزهایی که در لحظه ثبت نشده‌اند.</p>
+
+      <div className="filter-sheet">
+        <label>پرسنل
+          <select value={userId} onChange={e => setUserId(Number(e.target.value))}>
+            {everyone.map(s => <option key={s.userId} value={s.userId}>{s.displayName}</option>)}
+          </select>
+        </label>
+        <label>تاریخ
+          <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)} />
+        </label>
+        <div className="time-pair">
+          <label>ساعت ورود
+            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} />
+          </label>
+          <label>ساعت خروج
+            <input type="time" value={exitTime} onChange={e => setExitTime(e.target.value)} />
+          </label>
+        </div>
+        <label>توضیح
+          <input value={note} maxLength={300} onChange={e => setNote(e.target.value)}
+                 placeholder="مثلاً: در لحظه ثبت نشد" />
+        </label>
+      </div>
+
+      {/* The computed duration is shown before saving, so a wrong time is obvious here
+          rather than in the payroll report a month later. */}
+      <div className={'equation ' + (minutes > 0 ? 'valid' : 'invalid')}>
+        <span>مدت محاسبه‌شده</span>
+        <b>{minutes > 0 ? asHours(minutes) : 'زمان خروج باید بعد از ورود باشد'}</b>
+      </div>
+
+      {error && <div className="error">{error}</div>}
+      <button className="primary wide" disabled={!minutes || !userId || save.isPending}
+              onClick={() => { setError(''); save.mutate(); }}>
+        {save.isPending ? 'در حال ثبت…' : 'ثبت شیفت'}
+      </button>
+    </Sheet>
   );
 }

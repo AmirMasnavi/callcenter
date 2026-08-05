@@ -24,6 +24,12 @@ public class BootstrapConfig {
     if(users.findByUsernameIgnoreCase("lead").isEmpty()) create(users,encoder,"lead","سرپرست نمونه",Set.of(Role.SUPERVISOR,Role.MANAGER),demoPassword,null);
     if(users.findByUsernameIgnoreCase("office").isEmpty()) create(users,encoder,"office","مسئول دفتر",Set.of(Role.OFFICE_MANAGER),demoPassword,null);
     if(users.findByUsernameIgnoreCase("payroll").isEmpty()) create(users,encoder,"payroll","مسئول حقوق و دستمزد",Set.of(Role.PAYROLL),demoPassword,null);
+    // A single operator makes the attendance and comparison screens meaningless — several
+    // are needed before "who worked how much" is a question worth asking.
+    String[][] team={{"operator2","سارا محمدی"},{"operator3","رضا کریمی"},{"operator4","مینا رضایی"},{"operator5","حسین نوری"}};
+    for(String[] member:team)
+     if(users.findByUsernameIgnoreCase(member[0]).isEmpty())
+      create(users,encoder,member[0],member[1],Set.of(Role.AGENT),demoPassword,supervisor);
    }
   };
  }

@@ -4,6 +4,7 @@ import { api, apiUrl, can, Me, Permission, primaryRole, roleLabel } from './lib/
 import Login from './pages/Login';
 import Loading from './components/Loading';
 import Icon, { IconName } from './components/Icon';
+import { useEffect as useLayoutEffectSafe, useRef } from 'react';
 import MoreSheet from './components/MoreSheet';
 
 const AgentPage = lazy(() => import('./pages/AgentPage'));
@@ -96,6 +97,19 @@ export default function App() {
   const [path, setPath] = useState(location.pathname);
   const [promptDismissed, setPromptDismissed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // The bar's height depends on whether its sentence wraps, which depends on the name and
+  // the viewport — so it is measured rather than assumed.
+  const barRef = useRef<HTMLDivElement>(null);
+  useLayoutEffectSafe(() => {
+    const bar = barRef.current;
+    if (!bar) { document.documentElement.style.removeProperty('--impersonation-offset'); return; }
+    const apply = () => document.documentElement.style
+      .setProperty('--impersonation-offset', `${bar.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(bar);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty('--impersonation-offset'); };
+  }, [user?.impersonatedBy]);
 
   function navigate(next: string, replace = false) {
     history[replace ? 'replaceState' : 'pushState']({}, '', next);
@@ -153,7 +167,7 @@ export default function App() {
   return (
     <div className={"app-shell" + (user.impersonatedBy != null ? " impersonating" : "")}>
       {user.impersonatedBy != null && (
-        <div className="impersonation-bar" role="status">
+        <div className="impersonation-bar" role="status" ref={barRef}>
           <span>شما در حال مشاهده سامانه به‌جای «{user.displayName}» هستید.</span>
           <button onClick={stopImpersonating}>بازگشت به حساب خودم</button>
         </div>

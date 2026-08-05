@@ -35,6 +35,20 @@ public class AttendanceController {
         return service.clockIn(userId, body == null ? null : body.at(), actor);
     }
 
+    /** Backdated shift, for arrivals nobody was there to record. */
+    @PostMapping("/{userId}/manual")
+    public AttendanceService.EntryView manual(@PathVariable Long userId, @RequestBody AdjustRequest body,
+                                              @AuthenticationPrincipal AppPrincipal actor) {
+        return service.recordManual(userId, body.entryAt(), body.exitAt(), body.note(), actor);
+    }
+
+    /** Shifts for one person on one day, so the desk can correct a day other than today. */
+    @GetMapping("/{userId}/entries")
+    public List<AttendanceService.EntryView> entries(@PathVariable Long userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return service.entriesFor(userId, date, date);
+    }
+
     @PostMapping("/entries/{entryId}/out")
     public AttendanceService.EntryView clockOut(@PathVariable Long entryId,
                                                 @RequestBody(required = false) ClockRequest body,
