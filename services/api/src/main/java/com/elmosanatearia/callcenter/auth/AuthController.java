@@ -83,11 +83,17 @@ public class AuthController {
         AppPrincipal p = (AppPrincipal) auth.getPrincipal();
         AppUser user = users.findById(p.id()).orElseThrow();
         // Only a voluntary change needs the old password re-typed.
+        //
+        // These deliberately throw IllegalArgumentException (-> 400) rather than
+        // BadCredentialsException. A BadCredentialsException is mapped to 401 by the shared
+        // AuthenticationException handler, and the SPA treats *any* 401 as an expired session
+        // — so getting your current password wrong used to log you straight out, with the
+        // misleading message "username or password is incorrect".
         if (!user.isMustChangePassword()) {
             if (body.currentPassword() == null || body.currentPassword().isBlank())
-                throw new BadCredentialsException("رمز فعلی الزامی است");
+                throw new IllegalArgumentException("برای تغییر رمز، ابتدا رمز فعلی خود را وارد کنید");
             if (!encoder.matches(body.currentPassword(), user.getPasswordHash()))
-                throw new BadCredentialsException("رمز فعلی نادرست است");
+                throw new IllegalArgumentException("رمز فعلی نادرست است");
         }
         if (encoder.matches(body.newPassword(), user.getPasswordHash()))
             throw new IllegalArgumentException("رمز جدید باید با رمز فعلی متفاوت باشد");

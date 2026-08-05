@@ -38,8 +38,6 @@
   --space-4: 1rem;    --space-5: 1.5rem; --space-6: 2rem;
 
   --tap-target: 2.75rem; /* 44px at default text size */
-  --heading: #102a45;
-  color-scheme: light;
 }
 
 /* ---------------------------------------------------------------- typography
@@ -53,20 +51,11 @@
   font-optical-sizing: auto;
 }
 
-/* The base sheet hardcodes #102a45 here rather than using a token, so the dark-mode
+/* The base sheet hardcodes var(--text-primary) here rather than using a token, so the dark-mode
    remap never reached it and the page title came out near-invisible. Bound to a token
    that both themes define. */
-.page-head h1 { color: var(--heading, #102a45); }
+.page-head h1 { color: var(--heading, var(--text-primary)); }
 
-/* `.report-tabs button.new` sets color:var(--blue) and is declared AFTER `.active`,
-   so on the "+ new report" chip — which carries both classes — blue text won over
-   white and sat on a navy fill. Restore the readable pairing. */
-.report-tabs button.active.new,
-.operator-chips button.active.new {
-  color: #fff;
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.55);
-}
 .page-head h1 { font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem); }
 .login-card h2 { font-size: clamp(1.375rem, 1.1rem + 1.2vw, 1.875rem); }
 
@@ -117,7 +106,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -141,15 +130,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 /* Vibrancy: text over a translucent surface gets more contrast and weight,
-   never flat grey, or it dissolves as the backdrop changes. */
-aside nav button, .bottom-nav button {
-  color: #22405e;
-  font-weight: 500;
-}
-aside nav button.active, .bottom-nav button.active {
-  color: var(--navy);
-  font-weight: 650;
-}
+   never flat grey, or it dissolves as the backdrop changes.
+   Colours are set in the surfaces section so both themes stay in step. */
 
 /* Scroll edge effect instead of a hard 1px divider where content meets the floating nav.
    Done with an overlay rather than `mask-image` on .content deliberately: a mask creates
@@ -163,7 +145,7 @@ aside nav button.active, .bottom-nav button.active {
   height: 1.5rem;
   pointer-events: none;
   z-index: 89; /* just under the nav (90) */
-  background: linear-gradient(to top, var(--page-fade, #f4f7fa), transparent);
+  background: linear-gradient(to top, var(--bg), transparent);
 }
 @media (min-width: 981px) { .content-edge { display: none; } }
 
@@ -182,12 +164,10 @@ aside nav button.active, .bottom-nav button.active {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
-  background: var(--yellow-light);
-  border: 1px solid rgba(244, 181, 27, 0.35);
+  background: var(--warning-tint);
+  border: 1px solid var(--warning);
   box-shadow: var(--elevation-chip);
 }
-.banner.info { background: #eef4fb; border-color: rgba(27, 86, 141, 0.25); }
-.banner.warn { background: var(--yellow-light); }
 .banner p { margin: 0; flex: 1; font-size: 0.9375rem; }
 .banner strong { display: block; }
 
@@ -201,15 +181,15 @@ aside nav button.active, .bottom-nav button.active {
   justify-content: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
-  background: var(--navy);
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--text-on-accent);
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.012em;
 }
 .impersonation-bar button {
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
@@ -224,14 +204,14 @@ aside nav button.active, .bottom-nav button.active {
   letter-spacing: 0.012em;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
-  background: #eef4fb;
+  background: var(--accent-tint);
   color: var(--blue);
   white-space: nowrap;
 }
-.role-chip.ADMIN { background: #f3ecfb; color: #6b3fa0; }
-.role-chip.MANAGER { background: var(--green-light); color: #157a4f; }
-.role-chip.SUPERVISOR { background: var(--yellow-light); color: #9a6b00; }
-.role-chip.AGENT { background: #eef4fb; color: var(--blue); }
+.role-chip.ADMIN { background: var(--accent-tint); color: var(--accent); }
+.role-chip.MANAGER { background: var(--green-light); color: var(--success); }
+.role-chip.SUPERVISOR { background: var(--yellow-light); color: var(--warning); }
+.role-chip.AGENT { background: var(--accent-tint); color: var(--blue); }
 
 /* Multi-select role picker: a checkbox list, since roles are not exclusive. */
 .role-picker { display: grid; gap: var(--space-2); }
@@ -246,7 +226,7 @@ aside nav button.active, .bottom-nav button.active {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   cursor: pointer;
-  background: #fff;
+  background: var(--surface);
   font-weight: 400;
   color: inherit;
   transition: border-color var(--response-fast) var(--ease-out),
@@ -254,7 +234,7 @@ aside nav button.active, .bottom-nav button.active {
               transform var(--response) var(--ease-out);
 }
 .role-option:hover { border-color: var(--blue); }
-.role-option.checked { border-color: var(--blue); background: #f4f9ff; }
+.role-option.checked { border-color: var(--blue); background: var(--accent-tint); }
 .role-option input { margin-top: 0.2rem; accent-color: var(--blue); width: 1.05rem; height: 1.05rem; }
 .role-option b { display: block; font-size: 0.9375rem; }
 .role-option span { font-size: 0.8125rem; opacity: 0.7; }
@@ -279,7 +259,7 @@ aside nav button.active, .bottom-nav button.active {
 @keyframes scrim-in { from { opacity: 0; } }
 
 .modal > form, .modal > .sheet-body {
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-modal);
   max-height: min(88vh, 100dvh - 2rem);
@@ -425,7 +405,7 @@ aside nav button.active::after { transform: scaleY(1); }
 .field-error { display: block; font-size: 0.8125rem; color: var(--red); margin: calc(var(--space-1) * -1) 0 var(--space-2); font-weight: 550; }
 .success {
   background: var(--green-light);
-  color: #157a4f;
+  color: var(--success);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   font-size: 0.9375rem;
@@ -440,7 +420,7 @@ aside nav button.active::after { transform: scaleY(1); }
   align-items: start;
 }
 .profile-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
@@ -456,12 +436,12 @@ aside nav button.active::after { transform: scaleY(1); }
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: #fafcff;
+  background: var(--surface-sunken);
   transition: background-color var(--response-fast) var(--ease-out),
               border-color var(--response-fast) var(--ease-out);
 }
 .profile-card :is(input, select, textarea):focus {
-  background: #fff;
+  background: var(--surface);
   border-color: var(--blue);
   outline: none;
 }
@@ -518,7 +498,7 @@ aside nav button.active::after { transform: scaleY(1); }
 .attendance-summary { flex: 1 1 100%; font-size: 0.8125rem; opacity: 0.75; }
 
 .empty-cell { text-align: center; padding: var(--space-5); opacity: 0.65; }
-[data-theme='dark'] .attendance-block { background: #131d2a; }
+[data-theme='dark'] .attendance-block { background: var(--surface-sunken); }
 
 /* Admin actions inside the review card — destructive work is visually separated. */
 .admin-actions {
@@ -539,7 +519,7 @@ aside nav button.active::after { transform: scaleY(1); }
 
 button.danger {
   background: var(--red);
-  color: #fff;
+  color: var(--surface);
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.625rem 1rem;
@@ -599,14 +579,14 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   gap: var(--space-2);
   padding: var(--space-3);
   margin: 0;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 400;
   color: inherit;
   transition: background-color var(--response-fast) var(--ease-out);
 }
-.permission-row:hover { background: #f4f9ff; }
+.permission-row:hover { background: var(--accent-tint); }
 .permission-row input { accent-color: var(--blue); width: 1.05rem; height: 1.05rem; flex: none; }
 .permission-name { flex: 1; }
 .permission-row.revoked .permission-name { text-decoration: line-through; opacity: 0.6; }
@@ -619,141 +599,138 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   border-radius: 999px;
   white-space: nowrap;
 }
-.perm-tag.inherited { background: #eef4fb; color: var(--blue); }
-.perm-tag.added { background: var(--green-light); color: #157a4f; }
-.perm-tag.removed { background: var(--red-light); color: #b03744; }
+.perm-tag.inherited { background: var(--accent-tint); color: var(--blue); }
+.perm-tag.added { background: var(--green-light); color: var(--success); }
+.perm-tag.removed { background: var(--red-light); color: var(--danger); }
 
-[data-theme='dark'] .permission-row { background: #16202c; }
-[data-theme='dark'] .permission-row:hover { background: #1b2735; }
-[data-theme='dark'] .perm-tag.inherited { background: #17293c; color: #8fbdf0; }
-[data-theme='dark'] .perm-tag.added { background: #10281d; color: #5fd39c; }
-[data-theme='dark'] .perm-tag.removed { background: #2c1618; color: #f0919b; }
+[data-theme='dark'] .permission-row { background: var(--surface); }
+[data-theme='dark'] .permission-row:hover { background: var(--surface-raised); }
+[data-theme='dark'] .perm-tag.inherited { background: var(--accent-tint); color: var(--accent); }
+[data-theme='dark'] .perm-tag.added { background: var(--success-tint); color: var(--success); }
+[data-theme='dark'] .perm-tag.removed { background: var(--danger-tint); color: var(--danger); }
 
 .role-picker-wrap { border: none; padding: 0; margin: 0 0 var(--space-3); }
 .role-picker-wrap legend { font-size: 0.875rem; font-weight: 600; padding: 0 0 var(--space-2); }
 
-/* ------------------------------------------------------------- dark mode
-   Opt-in, never automatic. Dark is hard to read for some people, so the app
-   defaults to light and the user chooses (Profile → ظاهر برنامه). "System"
-   is resolved in JS (lib/theme.ts), which sets data-theme — that keeps this
-   one block as the single source of truth for the dark palette.
-   Colour is eased rather than switched abruptly; see the transition below. */
+/* ---------------------------------------------------- surfaces & theming
+   Appearance is opt-in, never automatic: dark is hard to read for some people, so the
+   app defaults to light and the user chooses (Profile -> ظاهر برنامه). "System" is
+   resolved in JS (lib/theme.ts), which sets data-theme.
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  color: #e8eef6;
-  background: #0e1621;
-  --line: #22303f;
-  --bg-subtle: #131d2a;
-  --page-fade: #0e1621;
-  --heading: #eaf1f9;
+   The rules below are theme-AGNOSTIC on purpose. The older stylesheets paint surfaces
+   with literal `white` / `var(--surface-sunken)` / `var(--text-primary)`, which no token could reach; each one is
+   remapped here to a semantic token so BOTH themes follow the palette. Writing these as
+   dark-only overrides is what previously left light-mode bugs (white sidebar text) and
+   an endless tail of "one more hardcoded surface".
+   --------------------------------------------------------------------------- */
 
-  /* The base sheet uses --navy for ~25 TEXT rules (headings, labels, emphasis).
-     At #123a63 those are near-invisible on a dark background — this is what made
-     headings like "حساب من" unreadable. Remapped to light tints that clear WCAG AA
-     on #0e1621. The two places --navy is used as a BACKGROUND are re-fixed below,
-     otherwise the primary button would turn pale. */
-  --navy: #a9c9ec;
-  --navy-dark: #cfe0f5;
-  --navy-light: #8fb8e4;
-  --blue: #7fb2ec;
-  --blue-hover: #a9c9ec;
-  --yellow: #f0bf47;
-  --green: #4ec48c;
-  --red: #f07b85;
-  --material-thick: rgba(18, 27, 38, 0.76);
-  --material-regular: rgba(24, 34, 47, 0.7);
-  --material-thin: rgba(30, 42, 57, 0.55);
-  --material-edge: rgba(255, 255, 255, 0.09);
-  --scrim: rgba(0, 0, 0, 0.52);
-  --yellow-light: #2c2410;
-  --green-light: #10281d;
-  --red-light: #2c1618;
+body { background: var(--bg); color: var(--text-primary); }
+.content, .login-page, .app-shell { background: var(--bg); }
+
+/* Card-like surfaces */
+:is(.form-card, .history, .charts section, .table-card, .review-card, .login-card,
+    .queue button, .filters, .export button, .kpis article, .user-grid article,
+    .modal form, .modal > .sheet-body, .role-option, .profile-card, .date-box,
+    .pending-count, .supervisor-stats span, .supervisor-toolbar, .day-report-bar,
+    .report-tabs button, .operator-chips button, .secondary, .locked, .permission-row) {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
 }
 
-[data-theme='dark'] body { background: #0e1621; color: #e8eef6; }
-[data-theme='dark'] .success { background: var(--green-light); color: #58d09b; }
-
-/* The base sheet hardcodes a light palette throughout. Rather than leave a
-   half-dark UI, every surface it paints white is remapped here. */
-[data-theme='dark'] .content,
-[data-theme='dark'] .login-page { background: #0e1621; }
-
-[data-theme='dark'] :is(.form-card, .history, .charts section, .table-card, .review-card,
-.login-card, .queue button, .filters, .export button, .kpis article,
-.user-grid article, .modal form, .modal > .sheet-body,
-.role-option, .profile-card, .date-box, .pending-count,
-.supervisor-stats span, .supervisor-toolbar,
-.report-tabs button, .operator-chips button, .secondary) {
-  background: #16202c;
-  border-color: var(--line);
-  color: #e8eef6;
+/* Recessed surfaces: inputs read as wells, headers as a band */
+:is(.metric-input, .notes textarea, .review-fields input, .login-card input, .modal input,
+    .modal select, .modal textarea, .report-label input, .supervisor-toolbar input,
+    .filters input, .filters select, .profile-card input, .profile-card select,
+    .profile-card textarea, .equation) {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
-[data-theme='dark'] .role-option.checked { background: #17293c; }
-[data-theme='dark'] .segmented button.active { background: #22303f; color: #fff; }
-[data-theme='dark'] :is(.report-list button:hover, tr:hover td) { background: #1b2735; }
-[data-theme='dark'] th { background: #131d2a; color: #b9c8d8; }
-
-/* Inputs keep a slightly recessed surface so fields still read as wells.
-   The base sheet paints these #fafcff, so each of its selectors is matched here. */
-[data-theme='dark'] :is(input, select, textarea) { color: #e8eef6; border-color: var(--line); }
-[data-theme='dark'] :is(.metric-input, .notes textarea, .review-fields input,
-.login-card input, .modal input, .modal select,
-.report-label input, .supervisor-toolbar input,
-.filters input, .filters select,
-.profile-card input, .profile-card select, .profile-card textarea) {
-  background: #131d2a;
-  color: #e8eef6;
-  border-color: var(--line);
+.metric-input input { background: transparent; color: inherit; }
+:is(.metric-input:focus-within, .notes textarea:focus, .login-card input:focus,
+    .modal input:focus, .modal select:focus, .review-fields input:focus,
+    .report-label input:focus, .supervisor-toolbar input:focus,
+    .profile-card input:focus) {
+  background: var(--surface);
+  border-color: var(--accent);
 }
-[data-theme='dark'] :is(.metric-input:focus-within, .notes textarea:focus, .login-card input:focus,
-.modal input:focus, .modal select:focus, .review-fields input:focus,
-.report-label input:focus, .supervisor-toolbar input:focus) { background: #1b2735; }
-[data-theme='dark'] .metric-input input { background: transparent; color: inherit; }
-[data-theme='dark'] ::placeholder { color: #7d8fa3; }
+::placeholder { color: var(--text-muted); opacity: 1; }
 
-/* --navy is remapped to a light tint for text, so the two rules that use it as a
-   BACKGROUND need a real, saturated blue back — otherwise the primary button
-   becomes pale-on-white and unreadable. */
-[data-theme='dark'] .primary,
-[data-theme='dark'] .report-tabs button.active,
-[data-theme='dark'] .operator-chips button.active,
-[data-theme='dark'] .segmented button.active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+th { background: var(--surface-sunken); color: var(--text-secondary); }
+:is(.report-list button:hover, tr:hover td) { background: var(--surface-raised); }
+.avatar { background: var(--surface-sunken); color: var(--accent); }
+
+/* Muted copy from the base sheet, bound to a token that passes in both themes */
+:is(.user-grid div span, .user-grid small, .eyebrow, figcaption, .hint,
+    .page-head p, .queue button small, .report-list em) {
+  color: var(--text-muted);
 }
-[data-theme='dark'] .primary:hover:not(:disabled) { background: #3b82f6; border-color: #3b82f6; }
 
-/* Muted greys from the base sheet are too dim against #0e1621. */
-[data-theme='dark'] :is(.user-grid div span, .user-grid small, .eyebrow, figcaption, .hint) { color: #9fb2c6; }
-[data-theme='dark'] .page-head p { color: #a8bacd; }
-/* Surfaces the base sheet paints from its own light palette rather than a token.
-   Found by scanning computed backgrounds in the live dark page — .equation and
-   .day-report-bar were rendering light text on a near-white fill. */
-[data-theme='dark'] .day-report-bar { background: #16202c; border-color: var(--line); }
-[data-theme='dark'] .equation { background: #131d2a; border-color: var(--line); }
-[data-theme='dark'] .equation.invalid { background: #2c1618; border-color: #5b2b30; }
-[data-theme='dark'] .equation.valid { background: #10281d; border-color: #1e5138; }
-[data-theme='dark'] .validation-list { background: #2c1618; color: #f0919b; border-color: #5b2b30; }
-[data-theme='dark'] .avatar { background: #22303f; color: #cfe0f5; }
-[data-theme='dark'] .locked { background: #131d2a; border-color: var(--line); }
+/* Solid fills keep white text — the *-fill tokens stay saturated in dark mode
+   precisely so this pairing never goes pale. */
+:is(.primary, .report-tabs button.active, .operator-chips button.active,
+    .segmented button.active) {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--text-on-accent);
+}
+.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button.danger { background: var(--danger-fill); color: var(--text-on-accent); border-color: var(--danger-fill); }
 
-[data-theme='dark'] .status.SUBMITTED { background: var(--yellow-light); color: #f0bf47; }
-[data-theme='dark'] .role-chip.AGENT { background: #17293c; color: #8fbdf0; }
-[data-theme='dark'] .role-chip.SUPERVISOR { background: #2c2410; color: #f0c65c; }
-[data-theme='dark'] .role-chip.MANAGER { background: #10281d; color: #5fd39c; }
-[data-theme='dark'] .role-chip.ADMIN { background: #241a33; color: #c4a3ee; }
-[data-theme='dark'] :is(aside nav button, .bottom-nav button) { color: #b9c8d8; }
-[data-theme='dark'] :is(aside nav button.active, .bottom-nav button.active) { color: #fff; }
-[data-theme='dark'] .banner.info { background: #14243a; }
-[data-theme='dark'] .sheet-grabber { background: rgba(255, 255, 255, 0.28); }
+/* `.report-tabs button.new` sets color:var(--blue) and is declared AFTER `.active`, so on
+   the "+ new report" chip — which carries both — the accent text won over white and sat on
+   a filled background. Restore the readable pairing. */
+:is(.report-tabs, .operator-chips) button.active.new {
+  color: var(--text-on-accent);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.55);
+}
 
-/* Ease the light<->dark change instead of jumping brightness. Suppressed on the
-   first paint (see lib/theme.ts) so the initial load doesn't animate. */
-:root.theme-ready body,
-:root.theme-ready .content,
-:root.theme-ready .login-page {
+/* Status / validation blocks */
+.equation.valid { background: var(--success-tint); border-color: var(--success); }
+.equation.invalid { background: var(--danger-tint); border-color: var(--danger); }
+.validation-list { background: var(--danger-tint); color: var(--danger); border-color: var(--danger); }
+.status.SUBMITTED { background: var(--warning-tint); color: var(--warning); }
+.success { background: var(--success-tint); color: var(--success); }
+.error { background: var(--danger-tint); color: var(--danger); }
+
+/* Sidebar. The panel is a light material, so its text must be the normal dark ink —
+   white text here was invisible in light mode. */
+.app-shell > aside {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-blur-thick);
+  backdrop-filter: var(--material-blur-thick);
+  border-inline-start: 1px solid var(--border);
+  color: var(--text-primary);
+}
+:is(.brand b, .aside-user b) { color: var(--text-primary); }
+:is(.brand span, .aside-user span) { color: var(--text-muted); }
+:is(aside nav button, .bottom-nav button) { color: var(--text-secondary); font-weight: 500; }
+:is(aside nav button.active, .bottom-nav button.active) { color: var(--accent); font-weight: 650; }
+.logout-btn { color: var(--text-secondary); }
+.logout-btn:hover { color: var(--danger); }
+
+.role-option.checked { background: var(--accent-tint); border-color: var(--accent); }
+.permission-row:hover { background: var(--surface-raised); }
+.theme-choice button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+.perm-tag.inherited { background: var(--accent-tint); color: var(--accent); }
+.perm-tag.added { background: var(--success-tint); color: var(--success); }
+.perm-tag.removed { background: var(--danger-tint); color: var(--danger); }
+.role-chip.AGENT, .role-chip.SUPERVISOR, .role-chip.MANAGER, .role-chip.ADMIN { background: var(--accent-tint); color: var(--accent); }
+.role-chip.SUPERVISOR { background: var(--warning-tint); color: var(--warning); }
+.role-chip.MANAGER { background: var(--success-tint); color: var(--success); }
+.role-chip.ADMIN { background: var(--accent-tint); color: var(--accent); }
+
+.banner.info { background: var(--accent-tint); border-color: var(--accent); }
+.banner.warn { background: var(--warning-tint); border-color: var(--warning); }
+.sheet-grabber { background: var(--border-strong); }
+.modal .close { background: var(--surface-sunken); color: var(--text-secondary); }
+.modal .close:hover { background: var(--danger-tint); color: var(--danger); }
+
+/* Ease the light<->dark change instead of jumping brightness. Suppressed on the first
+   paint (see lib/theme.ts) so the initial load doesn't animate. */
+:root.theme-ready :is(body, .content, .login-page, .app-shell) {
   transition: background-color var(--response-slow) var(--ease-inout),
               color var(--response-slow) var(--ease-inout);
 }
@@ -763,14 +740,12 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
 .theme-choice button {
   flex: 1 1 6rem;
   padding: var(--space-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: transparent;
   color: inherit;
   font-weight: 550;
 }
-.theme-choice button.active { border-color: var(--blue); color: var(--blue); background: #f4f9ff; }
-[data-theme='dark'] .theme-choice button.active { background: #17293c; color: #7fb6ee; }
 
 /* --------------------------------------------------- accessibility signals
    Three independent preferences, each handled on its own terms. */
@@ -802,20 +777,20 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
 
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --material-thick: #f4f7fa;
-    --material-regular: #fff;
-    --material-thin: #fff;
+    --material-thick: var(--bg);
+    --material-regular: var(--surface);
+    --material-thin: var(--surface);
   }
   .app-shell > aside, .bottom-nav, .modal {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
   .content { mask-image: none; -webkit-mask-image: none; }
-  :root[data-theme='dark'] { --material-thick: #131d2a; --material-regular: #16202c; --material-thin: #16202c; }
+  :root[data-theme='dark'] { --material-thick: var(--surface-sunken); --material-regular: var(--surface); --material-thin: var(--surface); }
 }
 
 @media (prefers-contrast: more) {
-  :root { --line: #6b7d90; }
+  :root { --line: var(--border-strong); }
   .app-shell > aside, .bottom-nav {
     background: Canvas;
     -webkit-backdrop-filter: none;
@@ -825,3 +800,111 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   .role-chip, .banner, .role-option { border: 1px solid currentColor; }
   :where(button, a, input, select, textarea):focus-visible { outline-width: 3px; }
 }
+
+/* ============================================================ icons & chrome
+   Icons inherit currentColor, so they need no per-theme rules. */
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.icon-button:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary); }
+/* Destructive controls only turn red on approach — red at rest reads as an error. */
+.icon-button.danger-ghost:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+
+:is(aside nav button, .bottom-nav button) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+aside nav button { justify-content: flex-start; padding-inline: var(--space-3); }
+.bottom-nav button { flex-direction: column; gap: 0.15rem; }
+.bottom-nav button svg { width: 1.25rem; height: 1.25rem; }
+.theme-choice button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.logout-btn { display: inline-flex; align-items: center; justify-content: center; }
+
+/* ============================================================ KPI colour coding
+   Every card looked identical after the palette change; the accent stripe is what
+   lets you find a metric without reading each label. */
+.kpis article { border-top: 3px solid var(--border); }
+.kpis article.attendees { border-top-color: var(--series-7); }
+.kpis article.users     { border-top-color: var(--series-1); }
+.kpis article.phone     { border-top-color: var(--series-2); }
+.kpis article.doc       { border-top-color: var(--series-6); }
+.kpis article.ok        { border-top-color: var(--series-3); }
+.kpis article.rate      { border-top-color: var(--series-4); }
+.kpis article b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.kpis article span { color: var(--text-secondary); }
+.kpis article small { color: var(--text-muted); }
+
+/* Filter bar labels were far too faint to read. */
+.filters label { color: var(--text-secondary); font-weight: 600; }
+.filters :is(select, input) { color: var(--text-primary); }
+
+.school-chart { padding: var(--space-4); }
+
+/* ============================================================ mobile spacing
+   One gutter token, so page padding, the nav and the sheet all agree. */
+@media (max-width: 640px) {
+  :root { --gutter: 1rem; }
+  .page { padding-inline: var(--gutter); }
+  .page-head { gap: var(--space-3); margin-bottom: var(--space-4); }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .profile-grid { grid-template-columns: 1fr; }
+  :is(.charts section, .table-card, .form-card, .profile-card) { padding: var(--space-4); }
+  .table-scroll { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
+  .head-actions { width: 100%; }
+  .head-actions button { flex: 1; }
+}
+
+/* ==================================================== always-dark surfaces
+   The login hero is a dark gradient in BOTH themes, so it cannot use the page
+   tokens — --warning is a deep amber chosen for light backgrounds and disappears
+   against it. Scoping the tokens here keeps one palette without special-casing
+   every child rule. */
+.login-art {
+  --text-primary: #ffffff;
+  --text-secondary: #dbe6f2;
+  --text-muted: #b8cade;
+  --on-dark-secondary: #c4d4e4;
+  /* Bright amber reads on dark; the page-level --warning is tuned for white. */
+  --warning: #f4b51b;
+  --accent: #8ab8ee;
+  color: var(--text-primary);
+}
+.login-art p { color: var(--warning); }
+.login-art > span { color: var(--text-secondary); }
+
+/* Bottom nav: five destinations must fit 375px without wrapping. */
+@media (max-width: 640px) {
+  .bottom-nav { padding-inline: var(--space-1); }
+  .bottom-nav button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: 0.625rem;
+    line-height: 1.2;
+  }
+  .bottom-nav button span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bottom-nav button::after { inset-inline: 20%; }
+}
+.logout-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.logout-action:hover { color: var(--danger); border-color: var(--danger); }

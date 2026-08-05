@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, can, Me, Permission, primaryRole, roleLabel } from './lib/api';
 import Login from './pages/Login';
 import Loading from './components/Loading';
+import Icon, { IconName } from './components/Icon';
 
 const AgentPage = lazy(() => import('./pages/AgentPage'));
 const SupervisorPage = lazy(() => import('./pages/SupervisorPage'));
@@ -10,7 +11,7 @@ const ManagerPage = lazy(() => import('./pages/ManagerPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 
-interface NavItem { path: string; icon: string; label: string; needs?: Permission[] }
+interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
 /*
  * Nav is driven by what the user may DO, not by which role they hold. An operator granted
@@ -18,12 +19,12 @@ interface NavItem { path: string; icon: string; label: string; needs?: Permissio
  * contents ("بررسی گزارش‌ها"), never a vague umbrella.
  */
 const NAV: NavItem[] = [
-  { path: '/app/report',    icon: '＋', label: 'ثبت گزارش',     needs: ['SUBMIT_REPORTS'] },
-  { path: '/app/history',   icon: '◷', label: 'گزارش‌های من',   needs: ['SUBMIT_REPORTS'] },
-  { path: '/app/review',    icon: '✓', label: 'بررسی گزارش‌ها', needs: ['REVIEW_REPORTS'] },
-  { path: '/app/dashboard', icon: '▦', label: 'داشبورد',       needs: ['VIEW_DASHBOARD'] },
-  { path: '/app/admin',     icon: '♟', label: 'کاربران',        needs: ['MANAGE_USERS'] },
-  { path: '/app/profile',   icon: '☺', label: 'حساب من' },
+  { path: '/app/report',    icon: 'plus',    label: 'ثبت گزارش',     needs: ['SUBMIT_REPORTS'] },
+  { path: '/app/history',   icon: 'history', label: 'گزارش‌های من',   needs: ['SUBMIT_REPORTS'] },
+  { path: '/app/review',    icon: 'check',   label: 'بررسی گزارش‌ها', needs: ['REVIEW_REPORTS'] },
+  { path: '/app/dashboard', icon: 'chart',   label: 'داشبورد',       needs: ['VIEW_DASHBOARD'] },
+  { path: '/app/admin',     icon: 'users',   label: 'کاربران',        needs: ['MANAGE_USERS'] },
+  { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
 const navFor = (me: Me) =>
@@ -108,7 +109,7 @@ export default function App() {
             <button key={n.path} className={active === n.path ? 'active' : ''}
                     aria-current={active === n.path ? 'page' : undefined}
                     onClick={() => navigate(n.path)}>
-              <i aria-hidden="true">{n.icon}</i>{n.label}
+              <Icon name={n.icon} /><span>{n.label}</span>
             </button>
           ))}
         </nav>
@@ -119,8 +120,8 @@ export default function App() {
                  onError={e => (e.currentTarget.style.display = 'none')} />
           </div>
           <div><b>{user.displayName}</b><span>{badge}</span></div>
-          <button className="logout-btn" onClick={logout} title="خروج">
-            <i aria-hidden="true">↪</i><span>خروج</span>
+          <button className="logout-btn" onClick={logout} title="خروج از حساب">
+            <Icon name="logout" label="خروج از حساب" />
           </button>
         </div>
       </aside>
@@ -141,7 +142,7 @@ export default function App() {
             : active === '/app/history' ? <AgentPage view="history" />
             : active === '/app/review' ? <SupervisorPage canVoid={can(user, 'VOID_REPORT')} canReopen={can(user, 'REOPEN_REPORT')} />
             : active === '/app/dashboard' ? <ManagerPage />
-            : active === '/app/profile' ? <ProfilePage me={user} />
+            : active === '/app/profile' ? <ProfilePage me={user} onLogout={logout} />
             : <AdminPage />}
         </Suspense>
       </main>
@@ -153,7 +154,7 @@ export default function App() {
           <button key={n.path} className={active === n.path ? 'active' : ''}
                   aria-current={active === n.path ? 'page' : undefined}
                   onClick={() => navigate(n.path)}>
-            <i aria-hidden="true">{n.icon}</i><span>{n.label}</span>
+            <Icon name={n.icon} /><span>{n.label}</span>
           </button>
         ))}
       </nav>

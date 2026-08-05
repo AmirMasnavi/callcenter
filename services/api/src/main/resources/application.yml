@@ -43,6 +43,10 @@ springdoc:
   swagger-ui:
     path: /api-docs
 app:
+  # Development aid: generates a few weeks of sample reports when the table is empty.
+  # Never enable in production.
+  mock-data:
+    enabled: ${MOCK_DATA_ENABLED:false}
   demo:
     users-enabled: ${DEMO_USERS_ENABLED:false}
     password: ${DEMO_PASSWORD:Demo12345!}

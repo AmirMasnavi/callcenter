@@ -2,11 +2,12 @@ import { FormEvent, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, roleLabel } from '../lib/api';
 import { readChoice, setTheme, ThemeChoice } from '../lib/theme';
+import Icon from '../components/Icon';
 
-const THEMES: { value: ThemeChoice; label: string }[] = [
-  { value: 'light', label: 'روشن' },
-  { value: 'dark', label: 'تیره' },
-  { value: 'system', label: 'مطابق سیستم' },
+const THEMES = [
+  { value: 'light' as ThemeChoice, label: 'روشن', icon: 'sun' as const },
+  { value: 'dark' as ThemeChoice, label: 'تیره', icon: 'moon' as const },
+  { value: 'system' as ThemeChoice, label: 'سیستم', icon: 'auto' as const },
 ];
 
 /*
@@ -16,9 +17,13 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
  * hidden entirely: the user proved it seconds ago at login, and asking again is friction
  * with no security value. A voluntary change still asks for it.
  */
-export default function Profile({ me }: { me: Me }) {
+export default function Profile({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const qc = useQueryClient();
-  const forced = me.mustChangePassword;
+  // Snapshotted at mount. Reading me.mustChangePassword live would flip the form from
+  // "temporary password" to "voluntary change" the instant a change succeeded, leaving the
+  // success banner sitting above a now-required current-password field — which reads as
+  // "it changed without asking me for anything".
+  const [forced] = useState(() => me.mustChangePassword);
   const [currentPassword, setCurrent] = useState('');
   const [newPassword, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -122,8 +127,9 @@ export default function Profile({ me }: { me: Me }) {
               <input type="file" accept="image/*" hidden disabled={uploading}
                      onChange={e => uploadAvatar(e.target.files?.[0])} />
             </label>
-            <button type="button" className="ghost" disabled={uploading} onClick={removeAvatar}>
-              حذف عکس
+            <button type="button" className="icon-button danger-ghost" disabled={uploading}
+                    onClick={removeAvatar} title="حذف عکس">
+              <Icon name="trash" label="حذف عکس" />
             </button>
           </div>
           <small className="hint">تصویر باید کمتر از ۲ مگابایت باشد.</small>
@@ -139,7 +145,7 @@ export default function Profile({ me }: { me: Me }) {
                       className={theme === t.value ? 'active' : ''}
                       aria-pressed={theme === t.value}
                       onClick={() => chooseTheme(t.value)}>
-                {t.label}
+                <Icon name={t.icon} size={18} /><span>{t.label}</span>
               </button>
             ))}
           </div>
@@ -183,6 +189,15 @@ export default function Profile({ me }: { me: Me }) {
             {busy ? 'در حال ثبت…' : 'ثبت رمز جدید'}
           </button>
         </form>
+        {/* Sign-out lives with the account, which is also where a phone user can reach it —
+            the sidebar that holds it on desktop is hidden on small screens. */}
+        <section className="profile-card">
+          <h2>خروج از حساب</h2>
+          <p className="hint">برای ورود دوباره به نام کاربری و رمز عبور نیاز دارید.</p>
+          <button type="button" className="secondary wide logout-action" onClick={onLogout}>
+            <Icon name="logout" size={18} /><span>خروج از حساب</span>
+          </button>
+        </section>
       </section>
     </div>
   );

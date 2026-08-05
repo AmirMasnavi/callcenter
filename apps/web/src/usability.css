@@ -145,7 +145,7 @@
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 18px;
-  color: #384a5e;
+  color: var(--text-secondary);
 }
 
 .report-label input {
