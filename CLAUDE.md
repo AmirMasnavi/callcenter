@@ -27,6 +27,7 @@ could change → MEMORY.md.
 | `services/api/src/main/java/.../report/` | Report lifecycle: draft → submit → approve, optimistic locking, revisions |
 | `services/api/src/main/java/.../user/` | Users, roles, admin CRUD, avatars |
 | `services/api/src/main/java/.../auth/` | Login, session, `LoginGuard` brute-force throttle |
+| `services/api/src/main/java/.../attendance/` | Worked hours: clock in/out, backdated entry, corrections, payroll report |
 | `services/api/src/main/java/.../dashboard/` | Aggregations + xlsx/csv export (Apache POI) |
 | `services/api/src/main/java/.../config/` | `SecurityConfig` (CORS/CSRF/RBAC), `BootstrapConfig` (seed users) |
 | `services/api/src/main/resources/db/migration/` | Flyway migrations — schema changes go here ONLY |
@@ -146,16 +147,51 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   at login. Voluntary changes still do.
 - Voiding is a **soft delete**. Never hard-delete a report: revisions and audit rows point at it.
 
+## Attendance & payroll (ساعات کاری)
+
+Replaces the paper timesheet. Two roles: `OFFICE_MANAGER` records (`RECORD_ATTENDANCE`),
+`PAYROLL` reports (`VIEW_ATTENDANCE`, also held by manager and supervisor).
+
+- **Days are bounded in Tehran time, never UTC.** A shift ending at 00:30 belongs to the day
+  it started, and `Instant.now().toString()` / `toISOString()` land on the wrong date every
+  evening — Tehran is UTC+3:30, so from 20:30 UTC it is already tomorrow there. On the
+  frontend use `todayIso()` from `components/JalaliDate.tsx`; on the backend `AttendanceService.ZONE`.
+- **All arithmetic is in whole minutes.** Hours are a display format only; summing fractional
+  hours drifts, and payroll totals have to reconcile exactly.
+- **`ShiftRules.validate` is the single definition of a valid shift** — future, exit-before-entry,
+  and the 24-hour cap. Clock-in, clock-out, manual entry and corrections all call it. A rule
+  enforced on one path but not another means stored hours that no path would accept.
+- **A backdated entry always writes a *closed* shift**, so it never contends with the
+  `idx_attendance_one_open_shift` unique index and can be filed while that person is currently
+  clocked in. Clearing an exit to reopen a shift is checked against that index explicitly,
+  or Postgres raises a constraint violation instead of a Persian message.
+- **The payroll report covers anyone with hours in the range, not just active operators.**
+  Someone who left mid-period is still owed the time they worked.
+- The point of the target is that it measures **real clock time, not days × a nominal shift** —
+  that is the thing the paper process could never enforce.
+
 ## Verifying a change actually works
 
 ```bash
 docker compose up -d --build
 ```
 App on http://localhost:8088. Demo users (when `DEMO_USERS_ENABLED=true`), password
-`Demo12345!`: `operator`, `supervisor`, `manager`, and **`lead`** — which holds
-SUPERVISOR *and* MANAGER and is the account to use when checking multi-role behaviour.
+`Demo12345!`:
+
+| Account | Use it to check |
+| :---- | :---- |
+| `operator`, `operator2`–`operator5` | Reporting; several operators so list views have real spread |
+| `supervisor` | Review queue |
+| `manager` | Dashboard, exports |
+| `lead` | Multi-role — holds SUPERVISOR *and* MANAGER |
+| `office` | Recording attendance (مسئول دفتر) |
+| `payroll` | The hours report (مسئول حقوق و دستمزد) |
+
 Admin comes from `.env`. Seeded users start with `mustChangePassword=true`, which now
 shows a dismissible prompt rather than blocking access.
+
+`app.mock-data.enabled` seeds reports and shifts **per operator** — an operator added later
+gets a history, and anyone who already has data is left alone.
 
 ## References
 

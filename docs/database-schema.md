@@ -175,6 +175,38 @@ ALTER TABLE app_users ADD COLUMN avatar_content_type VARCHAR(80);
 
 ---
 
+### 4. `V10__attendance.sql`
+Worked hours, replacing the paper timesheet.
+```sql
+CREATE TABLE attendance_entries (
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        BIGINT NOT NULL REFERENCES app_users(id),
+    entry_at       TIMESTAMPTZ NOT NULL,
+    exit_at        TIMESTAMPTZ,              -- NULL while the shift is still running
+    note           VARCHAR(300),
+    recorded_by_id BIGINT NOT NULL REFERENCES app_users(id),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- At most one OPEN shift per person: a second clock-in without a clock-out is rejected
+-- rather than silently creating an orphan. A backdated entry is always closed, so it
+-- never contends with this.
+CREATE UNIQUE INDEX idx_attendance_one_open_shift
+    ON attendance_entries(user_id) WHERE exit_at IS NULL;
+
+ALTER TABLE app_users ADD COLUMN monthly_hours_target INT;  -- NULL = use the system default
+```
+
+**Worked minutes are derived, never stored** (`AttendanceEntry.workedMinutes()`). A stored
+duration goes stale the moment either timestamp is corrected, and payroll is precisely where
+that must not happen. An open shift contributes `0` — unfinished time is not yet worked time.
+
+**Days are bounded in Asia/Tehran, not UTC.** A shift ending at 00:30 belongs to the day it
+started; UTC bucketing files it under the wrong date. `AttendanceService.ZONE` is the single
+source of that boundary.
+
+---
+
 ## 🔒 Session Management Schema
 `Spring Session JDBC` creates the following tables dynamically or via Flyway on initial setup:
 - `SPRING_SESSION`

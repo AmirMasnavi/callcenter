@@ -280,6 +280,49 @@ Decisions worth keeping:
 - The report is over **real clock time in the range**, not days × nominal hours. That is the
   distinction the paper process could not enforce and the whole point of the feature.
 
+### 2026-08-06 — Finishing the attendance module: what a walkthrough caught
+
+The feature worked on the happy path; walking it at 390px and 1280px in both themes turned
+up ten defects, most of them the same two mistakes repeated.
+
+**Mistake one — `toISOString()` used as "today".** It is UTC. Tehran is UTC+3:30, so from
+20:30 UTC onward the two disagree, and the module is used in the evening. Every date default
+(manual entry, corrections, the payroll range) preselected *and capped at* yesterday, and the
+30-day range silently dropped the current day. All now use the Tehran-based `todayIso()` that
+`JalaliDate.tsx` already exported. **Anywhere a date is defaulted, check which clock it came
+from.**
+
+**Mistake two — validation duplicated per code path.** `recordManual` checked future times
+and a 24-hour cap; `adjust` checked neither, and wrote `exitAt` *before* validating it. A
+correction could therefore store a shift that manual entry would refuse, and clearing an exit
+reopened a closed shift — which collides with the one-open-shift index and surfaces as a 500
+instead of a Persian message. Extracted to `ShiftRules.validate(entry, exit, now)`, injected
+`now` so boundaries are testable, and all four paths call it. 13 tests.
+
+Other things worth remembering:
+- **`asHours` mixed digit systems** — Persian hours, Latin minutes ("۳:12"), because
+  `String(m).padStart` bypassed `fa()`. Every total on the page had it and nobody noticed
+  until the number was read aloud. Pad *after* formatting, with `'۰'`.
+- **`report()` listed only active operators**, so someone deactivated mid-period vanished
+  along with hours they are still owed. Payroll must cover anyone with hours in the range.
+- **An overnight shift could not be entered at all** — exit ≤ entry read as invalid rather
+  than "next morning". The paper form recorded it as one line; so do we now.
+- **`window.print()` was called from a render body** behind a `window.__printed` global, and
+  the printable view fetched one report per person — each of which recomputed the entire
+  report server-side. Now a bulk `/report/details` endpoint and a real effect that prints
+  after two animation frames (a timeout is a guess about how slow the device is).
+- **`.charts` is the dashboard's two-column grid.** Reusing it for a single chart made the
+  section title consume one cell and squeezed the chart into a third of the page. New
+  full-width panels get `.chart-card`.
+- **Four columns do not fit a 347px screen.** Both the staff list and the timesheet rows had
+  avatar + name + button + icon in one flex row; names broke over two lines and status text
+  over four. Both now switch to a two-row grid under 700px.
+- **Manual entry opened in an error state every morning** — its default 14:00–19:00 window
+  had not happened yet, so the form said "این زمان هنوز نرسیده است" before anything was
+  typed. It now starts on the last day that window actually finished.
+- The seeder guarded on `reports.count() > 0`, so operators added later got nothing. Guarding
+  **per operator** means a new account gets a history and existing data is never touched.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
@@ -298,10 +341,13 @@ Decisions worth keeping:
   in that one spot. Converting those sheets to tokens would remove the whole class of bug.
 - **Avatar fetch is open to any authenticated user** (`GET /api/v1/users/{id}/avatar`), with
   no role or team scoping.
-- **Test coverage is still thin** — 18 backend (9 report rules incl. attendance + 9
-  permission) and 2 frontend tests. Testcontainers is on the classpath but no integration test
-  uses it. Permission *resolution* and report validation are covered; route-level
-  authorization and the whole frontend are only verified by hand.
+- **Test coverage is still thin** — 46 backend tests (report rules, permissions, text
+  normalization, shift arithmetic, shift validation) and 2 frontend tests. Testcontainers is
+  on the classpath but no integration test uses it. Pure rules are covered; route-level
+  authorization, persistence and the whole frontend are only verified by hand.
+- **`<input type="time">` renders in the browser's locale**, so on an en-US browser the
+  attendance sheet shows "02:00 PM" rather than 24-hour. It will read correctly on a machine
+  set to Persian/Iran, but the page cannot force it.
 - **`ManagerPage` bundle is ~1.15 MB** (ECharts, not code-split). Vite warns on every build.
 
 ## Changelog Notes

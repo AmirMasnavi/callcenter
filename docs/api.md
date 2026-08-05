@@ -215,6 +215,46 @@ Voiding never deletes a row — revisions and audit entries reference it.
 
 ---
 
+## 🕐 Attendance & Payroll Endpoints
+
+Worked hours, replacing the paper timesheet. Two permissions split the module: the front desk
+records, payroll reads. Every day boundary is **Asia/Tehran**, and every duration is returned
+in whole minutes — hours are a display format only.
+
+### Recording — `PERM_RECORD_ATTENDANCE` (role `OFFICE_MANAGER`)
+
+| Endpoint | Purpose |
+| :---- | :---- |
+| `GET /api/v1/attendance/today` | Every operator with their current state and today's total |
+| `POST /api/v1/attendance/{userId}/in` | Clock in. Body `{at?, note?}` — omit `at` for "now" |
+| `POST /api/v1/attendance/entries/{entryId}/out` | Clock out. Body `{at?}` |
+| `POST /api/v1/attendance/{userId}/manual` | A whole shift recorded after the fact. Body `{entryAt, exitAt, note?}` |
+| `GET /api/v1/attendance/{userId}/entries?date=` | One person's shifts on one day, so a past day can be corrected |
+| `PUT /api/v1/attendance/entries/{entryId}` | Correct a shift. Body `{entryAt, exitAt, note}` |
+| `DELETE /api/v1/attendance/entries/{entryId}` | Remove a shift (audited) |
+
+`manual` always writes a **closed** shift, so it does not contend with the one-open-shift
+index and can be filed while that person is currently clocked in. All four writing paths share
+`ShiftRules.validate`: entry required, nothing more than five minutes in the future, exit
+strictly after entry, and no shift longer than 24 hours. Violations return `400` with a
+Persian message.
+
+### Reporting — `PERM_VIEW_ATTENDANCE` (role `PAYROLL`; grantable to manager/supervisor)
+
+| Endpoint | Purpose |
+| :---- | :---- |
+| `GET /api/v1/attendance/report?from=&to=` | Hours *and* call performance per person for the range |
+| `GET /api/v1/attendance/report/details?from=&to=` | Every person's day-by-day sheet in one call — what the printable form uses |
+| `GET /api/v1/attendance/report/{userId}?from=&to=` | One person's sheet |
+| `GET /api/v1/attendance/report.xlsx?from=&to=` | Two sheets: summary, and daily detail laid out like the paper form |
+
+The report covers anyone with hours in the range, **not only active operators** — someone who
+left mid-period is still owed the time they worked. `targetPercent` is measured against each
+person's own `monthly_hours_target`, falling back to the `attendance.default-monthly-hours`
+setting (150).
+
+---
+
 ## 👤 User & Avatar Administration
 
 ### 1. List Users
