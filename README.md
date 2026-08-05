@@ -1,133 +1,163 @@
-# گزارش‌یار کال‌سنتر علم و صنعت آریا
+# Call Center Daily Report System (Elm-o-Sanat Aria)
 
-وب‌اپ فارسی و واکنش‌گرا برای ثبت، بررسی و تحلیل گزارش‌های روزانه کال‌سنتر.
+A full-stack, responsive web application for recording, auditing, reviewing, and analyzing call center daily performance reports.
 
-## اجرای سریع با Docker
+---
+
+## 📑 Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Quick Start with Docker](#quick-start-with-docker)
+- [Local Development](#local-development)
+- [Separate Front-end & Back-end Deployment](#separate-front-end--back-end-deployment)
+- [Documentation Index](#documentation-index)
+- [License](#license)
+
+---
+
+## 🚀 Overview
+
+The Call Center Report System provides call center agents (operators), supervisors, managers, and system administrators with a unified platform to track outreach metrics, review daily status updates, maintain audit trails, and export statistical reports. 
+
+Designed for high data integrity, the system uses optimistic locking for concurrent report edits, mandatory change justifications, Flyway database migrations, and role-based access control (RBAC).
+
+---
+
+## ✨ Key Features
+
+- **Role-Based Access Control (RBAC):**
+  - **Operator:** Submit, update, and manage draft or pending daily reports.
+  - **Supervisor:** Review, approve, reject, or request revisions on team reports with recorded audit logs.
+  - **Manager:** Access team analytics, high-level dashboards, performance trends, and Excel/CSV exports.
+  - **Admin:** Manage user accounts, role assignments, password resets, and user activation states.
+
+- **Report Lifecycle & Concurrency:**
+  - Multiple reports per date per agent with customizable labels/titles.
+  - Draft state visible exclusively to the authoring operator.
+  - Optimistic locking (`@Version`) prevents overwrite conflicts.
+  - Revision history tracking (`report_revisions` table) records `old_values` and `new_values` whenever a reviewed report is amended.
+
+- **Interactive Analytics Dashboard:**
+  - Built with Apache ECharts supporting Jalali (Persian) date filters.
+  - Visual metrics for total contacts, positive responses (`OK`), potential leads (`Maybe`), negative outcomes (`No`), and unanswered calls.
+
+- **Avatar & Profile Support:**
+  - Secure profile avatar upload and binary storage.
+
+- **Data Export:**
+  - Dynamic export to `.xlsx` (Apache POI) and `.csv` formats.
+
+---
+
+## 🛠 Tech Stack
+
+### Back-end (`services/api`)
+- **Runtime:** Java 21
+- **Framework:** Spring Boot 4.1.0 (Spring Web, Spring Security, Spring Data JPA, Spring Session JDBC, Actuator)
+- **Database:** PostgreSQL with Flyway migration management
+- **Documentation & Testing:** OpenAPI 3.0 (SpringDoc), Testcontainers, JUnit 5
+
+### Front-end (`apps/web`)
+- **Runtime & Build:** Node.js 22+, Vite, TypeScript
+- **Framework:** React 19 SPA
+- **State & Data Fetching:** `@tanstack/react-query` v5
+- **Data Visualization:** Apache `echarts` & `echarts-for-react`
+- **UI Components:** Custom responsive CSS, `react-multi-date-picker` (Jalali calendar integration)
+
+---
+
+## 🐳 Quick Start with Docker
+
+Run the entire stack (PostgreSQL, Spring Boot API, React Web App behind Nginx) with a single command:
 
 ```bash
+# 1. Copy example environment configuration
 cp .env.example .env
-# حتماً رمزهای فایل .env را تغییر دهید
+
+# 2. Update default passwords in .env for security
+
+# 3. Build and launch containers
 docker compose up --build
 ```
 
-سامانه در `http://localhost:8088` در دسترس است. در اولین ورود از حساب ادمین
-تعریف‌شده در `.env` استفاده کنید و رمز را تغییر دهید.
+Access the application at `http://localhost:8088`.
 
-### حساب‌های اولیه Docker
+### Initial Demo Accounts
 
-| نقش | نام کاربری | رمز موقت پیش‌فرض |
-| --- | --- | --- |
-| ادمین | `admin` | `ChangeMe123!` |
-| مدیر | `manager` | `Demo12345!` |
-| ناظر | `supervisor` | `Demo12345!` |
-| اپراتور | `operator` | `Demo12345!` |
+> [!IMPORTANT]
+> Change default temporary passwords upon first login. For production deployments, set `DEMO_USERS_ENABLED=false` in `.env`.
 
-نام کاربری `callcenter` فقط متعلق به دیتابیس PostgreSQL است و حساب ورود به
-اپلیکیشن نیست. تمام حساب‌های بالا در اولین ورود باید رمز موقت را تغییر دهند.
-برای محیط production مقدار `DEMO_USERS_ENABLED=false` و رمزهای امن تنظیم کنید.
+| Role | Username | Temporary Password | Description |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin` | `ChangeMe123!` | User management & system settings |
+| **Manager** | `manager` | `Demo12345!` | Overall metrics & team exports |
+| **Supervisor** | `supervisor` | `Demo12345!` | Report review & approval workflows |
+| **Operator** | `operator` | `Demo12345!` | Daily report entry & editing |
 
-## توسعه محلی
+*Note: The database user `callcenter` is reserved for PostgreSQL internal connections and is not an application login.*
 
-پیش‌نیازها: Java 21، Maven، Node 22 و PostgreSQL.
+---
 
+## 💻 Local Development
+
+### Prerequisites
+- **Java 21** JDK
+- **Maven 3.9+**
+- **Node.js 22+** and `npm`
+- **PostgreSQL 15+**
+
+### 1. Launch Back-end API
 ```bash
+# From repository root
 mvn -pl services/api spring-boot:run
+```
+The REST API will be available at `http://localhost:8080`.
+- OpenAPI documentation: `http://localhost:8080/api-docs` or `http://localhost:8080/swagger-ui.html`
+- Health check: `http://localhost:8080/actuator/health`
+
+### 2. Launch Front-end Development Server
+```bash
 cd apps/web
 npm install
 npm run dev
 ```
+The Vite development server runs at `http://localhost:5173`. In local mode, requests are automatically proxied to `http://localhost:8080`. Ensure `apps/web/.env.local` remains empty (`VITE_API_BASE_URL=`).
 
-در این حالت، فرانت‌اند از proxy و API محلی در `http://localhost:8080` استفاده
-می‌کند. مقدار پیش‌فرض فایل `apps/web/.env.local` باید خالی بماند:
+---
 
+## 🌐 Separate Front-end & Back-end Deployment
+
+When deploying front-end and back-end to separate hosts (e.g., Render, Railway, Vercel):
+
+### Front-end Environment Settings
+Set the public URL of your backend API during build:
 ```dotenv
-VITE_API_BASE_URL=
+VITE_API_BASE_URL=https://callcenter-api.onrender.com
 ```
 
-## انتشار جداگانهٔ Front-end و Back-end
-
-برای انتشار فرانت‌اند و بک‌اند به‌صورت دو سرویس مجزا (برای نمونه در Render)،
-متغیرهای زیر را تنظیم کنید.
-
-### Front-end
-
-در تنظیمات Environment Variables فرانت‌اند:
-
+### Back-end Environment Settings
+Configure CORS and secure cookie policy:
 ```dotenv
-VITE_API_BASE_URL=https://callcenter-tbb6.onrender.com
-```
-
-این مقدار باید URL کامل بک‌اند باشد و اسلش پایانی لازم ندارد.
-
-### Back-end
-
-در تنظیمات Environment Variables بک‌اند:
-
-```dotenv
-CORS_ALLOWED_ORIGINS=https://asa-callcenter.onrender.com
+CORS_ALLOWED_ORIGINS=https://callcenter-web.onrender.com
 COOKIE_SECURE=true
 ```
 
-`CORS_ALLOWED_ORIGINS` باید دقیقاً URL عمومی فرانت‌اند باشد؛ اگر چند محیط
-دارید، آن‌ها را با کاما جدا کنید. `VITE_API_BASE_URL` هنگام build در bundle
-فرانت‌اند قرار می‌گیرد؛ پس پس از تغییر آن، فرانت‌اند را دوباره deploy کنید.
+---
 
-### بررسی پیش از انتشار
+## 📚 Documentation Index
 
-1. ابتدا بک‌اند را deploy کنید و health check آن را در `/actuator/health` باز کنید.
-2. URL بک‌اند را در `VITE_API_BASE_URL` فرانت‌اند بگذارید و فرانت‌اند را deploy کنید.
-3. URL فرانت‌اند را در `CORS_ALLOWED_ORIGINS` بک‌اند بگذارید و بک‌اند را redeploy کنید.
-4. با یک حساب آزمایشی وارد شوید و ایجاد گزارش، بارگذاری تصویر و خروجی CSV را بررسی کنید.
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
-مستندات OpenAPI در `/api-docs` و health check در `/actuator/health` قرار دارد.
+- 🏗 **[Architecture Overview](docs/architecture.md):** Deep-dive into project structure, data flow, security model, and optimistic locking.
+- 🔌 **[API Reference](docs/api.md):** REST endpoints, authentication scheme, payload DTOs, and role permissions.
+- 🗄 **[Database Schema](docs/database-schema.md):** PostgreSQL tables, Flyway migrations (`V1`, `V2`, `V3`), indexes, and ER relationships.
+- 🚀 **[Deployment & DevOps](docs/deployment-and-devops.md):** Docker Compose configuration, production hardening, environment variables, and database backups.
+- 🧑‍💻 **[Developer Guide](docs/developer-guide.md):** Developer environment setup, building artifacts, running unit & integration tests.
 
-## مدل گزارش
+---
 
-هر اپراتور می‌تواند برای هر تاریخ چند گزارش مستقل و دارای عنوان اختیاری ثبت کند.
-پیش‌نویس فقط برای خود اپراتور قابل مشاهده است. گزارش ارسال‌شده تا پیش از تأیید
-ناظر توسط اپراتور قابل اصلاح است؛ هر اصلاح ثبت و با optimistic locking محافظت
-می‌شود. پس از تأیید، فقط ناظر می‌تواند با ثبت دلیل آن را مجدداً اصلاح کند و
-مقدارهای قبل و بعد در تاریخچه باقی می‌مانند.
+## 📄 License
 
-## پشتیبان‌گیری
-
-از volume دیتابیس به‌صورت زمان‌بندی‌شده با `pg_dump` نسخه پشتیبان تهیه کنید. پیش
-از هر ارتقا، backup را در یک دیتابیس آزمایشی restore و صحت آن را بررسی کنید.
-
-## انتشار نسخه آزمایشی
-
-### لینک موقت برای تست سریع
-
-پس از اجرای Docker، می‌توان بدون خرید سرور یک آدرس HTTPS موقت ساخت:
-
-```bash
-docker compose up -d --build
-cloudflared tunnel --url http://localhost:8088
-```
-
-آدرس تصادفی `trycloudflare.com` فقط تا زمانی فعال است که کامپیوتر و فرایند
-`cloudflared` روشن باشند. این روش فقط برای تست کوتاه‌مدت و با داده غیرواقعی
-مناسب است.
-
-### محیط staging پایدار
-
-برای تست چندروزه، یک VPS لینوکسی کوچک با Docker و یک زیردامنه مانند
-`callcenter-test.example.com` پیشنهاد می‌شود:
-
-1. کد را روی سرور clone و Docker Engine و Compose Plugin را نصب کنید.
-2. از `.env.example` یک `.env` بسازید و حداقل این موارد را تنظیم کنید:
-
-```dotenv
-DB_PASSWORD=یک-رمز-تصادفی-طولانی
-ADMIN_PASSWORD=یک-رمز-موقت-قوی
-DEMO_USERS_ENABLED=false
-COOKIE_SECURE=true
-APP_PORT=127.0.0.1:8088
-```
-
-3. سرویس را با `docker compose up -d --build` اجرا کنید.
-4. با Cloudflare Tunnel یک hostname پایدار را به
-   `http://localhost:8088` متصل کنید.
-5. با حساب ادمین وارد شوید، رمز را تغییر دهید و حساب‌های محدود تسترها را بسازید.
-6. پیش از ورود داده واقعی، backup زمان‌بندی‌شده PostgreSQL و محدودیت دسترسی
-   کاربران آزمایشی را فعال کنید.
+Copyright © 2026 Elm-o-Sanat Aria. All rights reserved.
