@@ -3,21 +3,27 @@ import jakarta.validation.constraints.*;
 import java.time.*;
 public final class ReportDtos {
  private ReportDtos(){}
- public record SaveRequest(Long reportId,@NotNull LocalDate reportDate,@Size(max=120) String reportLabel,@PositiveOrZero int totalPeople,@PositiveOrZero int contactedCount,
+ public record SaveRequest(Long reportId,@NotNull LocalDate reportDate,@Size(max=120) String reportLabel,
+   @Size(max=160) String school,@PositiveOrZero int totalPeople,@PositiveOrZero int contactedCount,
    @PositiveOrZero int okCount,@PositiveOrZero int maybeCount,@PositiveOrZero int noCount,
-   @PositiveOrZero int noAnswerCount,@Size(max=1000) String notes,Long version){}
+   @PositiveOrZero int noAnswerCount,@PositiveOrZero Integer attendeeCount,@Size(max=1000) String notes,Long version){}
  public record ReviewRequest(@NotNull Long version,@PositiveOrZero int totalPeople,@PositiveOrZero int contactedCount,
    @PositiveOrZero int okCount,@PositiveOrZero int maybeCount,@PositiveOrZero int noCount,
-   @PositiveOrZero int noAnswerCount,@Size(max=1000) String notes,@Size(max=1000) String correctionReason){}
+   @PositiveOrZero int noAnswerCount,@PositiveOrZero Integer attendeeCount,@Size(max=160) String school,
+   @Size(max=1000) String notes,@Size(max=1000) String correctionReason){}
  public record VoidRequest(@NotNull Long version,@NotBlank @Size(max=1000) String reason){}
  public record ReopenRequest(@NotNull Long version,@NotNull ReportStatus target,@NotBlank @Size(max=1000) String reason){}
- public record View(Long id,Long agentId,String agentName,LocalDate reportDate,String reportLabel,int totalPeople,int contactedCount,
-   int notContacted,int okCount,int maybeCount,int noCount,int noAnswerCount,String notes,ReportStatus status,
+ public record View(Long id,Long agentId,String agentName,LocalDate reportDate,String reportLabel,String school,
+   int totalPeople,int contactedCount,
+   int notContacted,int okCount,int maybeCount,int noCount,int noAnswerCount,
+   Integer attendeeCount,double attendanceRate,String notes,ReportStatus status,
    Instant createdAt,Instant updatedAt,Instant submittedAt,Instant reviewedAt,String reviewerName,long version,
    boolean voided,Instant voidedAt,String voidedByName,String voidReason){
    public static View of(DailyReport r){
-    return new View(r.getId(),r.getAgent().getId(),r.getAgent().getDisplayName(),r.getReportDate(),r.getReportLabel(),r.getTotalPeople(),
+    return new View(r.getId(),r.getAgent().getId(),r.getAgent().getDisplayName(),r.getReportDate(),r.getReportLabel(),r.getSchool(),
+      r.getTotalPeople(),
       r.getContactedCount(),r.notContacted(),r.getOkCount(),r.getMaybeCount(),r.getNoCount(),r.getNoAnswerCount(),
+      r.getAttendeeCount(),r.attendanceRate(),
       r.getNotes(),r.getStatus(),r.getCreatedAt(),r.getUpdatedAt(),r.getSubmittedAt(),r.getReviewedAt(),
       r.getReviewer()==null?null:r.getReviewer().getDisplayName(),r.getVersion(),
       r.isVoided(),r.getVoidedAt(),r.getVoidedBy()==null?null:r.getVoidedBy().getDisplayName(),r.getVoidReason());

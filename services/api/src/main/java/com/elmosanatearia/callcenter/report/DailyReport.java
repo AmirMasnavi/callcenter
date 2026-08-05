@@ -16,6 +16,10 @@ public class DailyReport {
     @Column(name="maybe_count",nullable=false) private int maybeCount;
     @Column(name="no_count",nullable=false) private int noCount;
     @Column(name="no_answer_count",nullable=false) private int noAnswerCount;
+    /** How many actually attended the class. Null until the class has happened. */
+    @Column(name="attendee_count") private Integer attendeeCount;
+    /** The school that was called — managers compare per school, not only per operator. */
+    @Column(name="school",length=160) private String school;
     @Column(length=1000) private String notes;
     @Enumerated(EnumType.STRING) @Column(nullable=false) private ReportStatus status = ReportStatus.DRAFT;
     @Column(name="submitted_at") private Instant submittedAt;
@@ -40,6 +44,10 @@ public class DailyReport {
     public int getMaybeCount(){return maybeCount;} public void setMaybeCount(int v){maybeCount=v;}
     public int getNoCount(){return noCount;} public void setNoCount(int v){noCount=v;}
     public int getNoAnswerCount(){return noAnswerCount;} public void setNoAnswerCount(int v){noAnswerCount=v;}
+    public Integer getAttendeeCount(){return attendeeCount;} public void setAttendeeCount(Integer v){attendeeCount=v;}
+    public String getSchool(){return school;} public void setSchool(String v){school=v;}
+    /** Attendees as a share of those who answered positively — 0 when nothing to compare. */
+    public double attendanceRate(){ return okCount==0||attendeeCount==null?0:attendeeCount*100d/okCount; }
     public String getNotes(){return notes;} public void setNotes(String v){notes=v;}
     public ReportStatus getStatus(){return status;} public void setStatus(ReportStatus v){status=v;}
     public Instant getSubmittedAt(){return submittedAt;} public void setSubmittedAt(Instant v){submittedAt=v;}

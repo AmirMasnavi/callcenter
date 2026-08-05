@@ -77,6 +77,40 @@ Motion pass also landed: hover lift (gated behind `@media (hover: hover)` so tap
 a travelling active-nav indicator, staggered list entrances, and a shimmer skeleton — all
 neutralised under `prefers-reduced-motion`.
 
+### 2026-08-05 — Attendance tracking, self-service avatars, contrast fixes
+
+**تعداد حاضرین (attendance).** The number who actually turned up in class — the figure that
+says whether the calls worked, as opposed to how many people were reached. Added as a
+nullable column (V7) and carried through the whole chain: operator enters it, supervisor can
+correct it on review (it counts as a change, so a reason is required), manager sees it
+immediately as a KPI, per-operator column, and in both exports.
+
+**Nullable is load-bearing:** null means "the class hasn't run yet", which is not the same as
+zero attendance. The operator form keeps the field as `''` rather than 0 for exactly this
+reason, and the dashboard treats null as zero only when summing.
+
+**`school` is a real column**, not the freeform `reportLabel`, because managers compare per
+school and a free-text label can't be grouped reliably. Reports without one fall into
+`بدون مدرسه` so the per-school totals still reconcile with the headline numbers.
+
+**Self-service avatars.** `POST/DELETE /api/v1/users/me/avatar` — users set their own picture
+without an admin. Validation is shared with the admin path so both reject the same things.
+
+**Three contrast/layout bugs:**
+1. `.page-head h1` hardcodes `#102a45` instead of a token, so the dark remap never reached it
+   and the page title was invisible. Now bound to `--heading`.
+2. `.report-tabs button.new` sets `color: var(--blue)` and is declared *after* `.active`, so
+   on the "+ new report" chip — which has both classes — blue text sat on a navy fill. This
+   was broken in light mode too, and pre-dated my changes.
+3. `.equation`, `.day-report-bar` and `.validation-list` still painted light in dark mode.
+
+Found #3 by scanning computed styles in the live page for light backgrounds and sub-4.5:1
+text, not by eye. Both themes now scan clean. **Use that scan after any CSS change** — it
+catches what a screenshot doesn't.
+
+Bottom-nav active indicator moved from above the icon to under the label, where it reads as
+"you are here" rather than a stray divider.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
@@ -95,9 +129,10 @@ neutralised under `prefers-reduced-motion`.
   in that one spot. Converting those sheets to tokens would remove the whole class of bug.
 - **Avatar fetch is open to any authenticated user** (`GET /api/v1/users/{id}/avatar`), with
   no role or team scoping.
-- **Test coverage is still thin** — 12 backend (3 report rules + 9 permission) and 2 frontend
-  tests. Testcontainers is on the classpath but no integration test uses it. The permission
-  *resolution* is covered; the route-level authorization is only verified by hand.
+- **Test coverage is still thin** — 18 backend (9 report rules incl. attendance + 9
+  permission) and 2 frontend tests. Testcontainers is on the classpath but no integration test
+  uses it. Permission *resolution* and report validation are covered; route-level
+  authorization and the whole frontend are only verified by hand.
 - **`ManagerPage` bundle is ~1.15 MB** (ECharts, not code-split). Vite warns on every build.
 
 ## Changelog Notes

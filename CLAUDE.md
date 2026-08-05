@@ -72,6 +72,13 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
 - `.modal label` in the base sheet is `display:block` with margins and **outranks a single
   class**. New label-based controls inside a sheet need `.modal .your-class` specificity or
   they silently stack and balloon in height.
+- The old sheets hardcode light colours (`white`, `#fafcff`, `#102a45`, `--red-light`…), so
+  **every new surface needs a matching `[data-theme='dark']` rule**. To find what's missing,
+  load the page in dark mode and scan computed styles for light backgrounds / low-contrast
+  text rather than eyeballing it — that is how `.equation`, `.day-report-bar` and
+  `.validation-list` were caught.
+- Watch for classes that combine: `.report-tabs button.new` is declared after `.active` and
+  overrode its `color`, giving blue-on-navy. Check the cascade when two state classes meet.
 - **Appearance defaults to light and never silently follows the OS.** Dark is an explicit
   choice in Profile (`lib/theme.ts` sets `data-theme`; `theme.css` keys the dark palette off it).
   Do not reintroduce a bare `@media (prefers-color-scheme: dark)` — it takes the choice away.
@@ -101,6 +108,11 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   login returns 403. curl hides this because it sends no `Origin` header.
 - Report validation runs on **submit**, not on draft save. Drafts are intentionally allowed to
   hold inconsistent numbers.
+- **`attendeeCount` (تعداد حاضرین) is nullable and must stay that way.** Null means "the class
+  hasn't happened yet", which is different from zero attendance. Never coerce a blank input to
+  0 — it changes the meaning and corrupts the manager's show-up rate.
+- `school` drives the manager's per-school comparison, so it's a real column, not the freeform
+  `reportLabel`. Reports without one group under `بدون مدرسه` so totals still reconcile.
 - Password minimum is 8 (`AuthController.MIN_PASSWORD_LENGTH`, mirrored in `lib/api.ts`).
   Changing a *temporary* password does not require the current one — the user just proved it
   at login. Voluntary changes still do.

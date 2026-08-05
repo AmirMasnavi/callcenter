@@ -26,10 +26,43 @@ export default function Profile({ me }: { me: Me }) {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [theme, setThemeChoice] = useState<ThemeChoice>(readChoice);
+  const [uploading, setUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  // Bumped after a change so the <img> refetches — the avatar URL is otherwise stable
+  // and the browser would keep serving the old picture from cache.
+  const [avatarVersion, setAvatarVersion] = useState(0);
 
   function chooseTheme(choice: ThemeChoice) {
     setTheme(choice);
     setThemeChoice(choice);
+  }
+
+  async function uploadAvatar(file?: File) {
+    if (!file) return;
+    if (file.size > 2_000_000) { setAvatarError('حجم عکس باید کمتر از ۲ مگابایت باشد'); return; }
+    setUploading(true); setAvatarError('');
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      await api('/api/v1/users/me/avatar', { method: 'POST', body: data });
+      setAvatarVersion(v => v + 1);
+    } catch (err) {
+      setAvatarError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setUploading(true); setAvatarError('');
+    try {
+      await api('/api/v1/users/me/avatar', { method: 'DELETE' });
+      setAvatarVersion(v => v + 1);
+    } catch (err) {
+      setAvatarError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   const tooShort = newPassword.length > 0 && newPassword.length < MIN_PASSWORD_LENGTH;
@@ -68,7 +101,7 @@ export default function Profile({ me }: { me: Me }) {
         <article className="profile-card">
           <div className="avatar large">
             {me.displayName.slice(0, 1)}
-            <img src={apiUrl(`/api/v1/users/${me.id}/avatar`)} alt=""
+            <img src={apiUrl(`/api/v1/users/${me.id}/avatar`) + `?v=${avatarVersion}`} alt=""
                  onError={e => (e.currentTarget.style.display = 'none')} />
           </div>
           <div>
@@ -81,6 +114,20 @@ export default function Profile({ me }: { me: Me }) {
           {me.roles.length > 1 && (
             <small>این حساب چند نقش دارد؛ همه بخش‌های مربوط در منو در دسترس است.</small>
           )}
+
+          {/* Everyone sets their own picture — it no longer needs an admin. */}
+          <div className="avatar-actions">
+            <label className="secondary as-button">
+              {uploading ? 'در حال بارگذاری…' : 'انتخاب عکس'}
+              <input type="file" accept="image/*" hidden disabled={uploading}
+                     onChange={e => uploadAvatar(e.target.files?.[0])} />
+            </label>
+            <button type="button" className="ghost" disabled={uploading} onClick={removeAvatar}>
+              حذف عکس
+            </button>
+          </div>
+          <small className="hint">تصویر باید کمتر از ۲ مگابایت باشد.</small>
+          {avatarError && <div className="error">{avatarError}</div>}
         </article>
 
         <section className="profile-card">

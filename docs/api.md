@@ -90,6 +90,19 @@ carries `effectivePermissions`, `rolePermissions`, `grantedPermissions` and
 
 ---
 
+## 🖼 Avatars
+
+| Endpoint | Method | Access |
+| :--- | :--- | :--- |
+| `/api/v1/users/{id}/avatar` | `GET` | Any authenticated user |
+| `/api/v1/users/me/avatar` | `POST` | Yourself — set your own picture, no admin needed |
+| `/api/v1/users/me/avatar` | `DELETE` | Yourself — remove your picture |
+| `/api/v1/admin/users/{id}/avatar` | `POST` | Requires `MANAGE_USERS` |
+
+Images only, 2 MB maximum; both paths share the same validation.
+
+---
+
 ## 🛡 Admin Endpoints
 
 All require the `ADMIN` role and write an entry to the audit log.

@@ -38,6 +38,7 @@
   --space-4: 1rem;    --space-5: 1.5rem; --space-6: 2rem;
 
   --tap-target: 2.75rem; /* 44px at default text size */
+  --heading: #102a45;
   color-scheme: light;
 }
 
@@ -50,6 +51,21 @@
   letter-spacing: -0.021em;
   font-weight: 700;
   font-optical-sizing: auto;
+}
+
+/* The base sheet hardcodes #102a45 here rather than using a token, so the dark-mode
+   remap never reached it and the page title came out near-invisible. Bound to a token
+   that both themes define. */
+.page-head h1 { color: var(--heading, #102a45); }
+
+/* `.report-tabs button.new` sets color:var(--blue) and is declared AFTER `.active`,
+   so on the "+ new report" chip — which carries both classes — blue text won over
+   white and sat on a navy fill. Restore the readable pairing. */
+.report-tabs button.active.new,
+.operator-chips button.active.new {
+  color: #fff;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.55);
 }
 .page-head h1 { font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem); }
 .login-card h2 { font-size: clamp(1.375rem, 1.1rem + 1.2vw, 1.875rem); }
@@ -365,9 +381,11 @@ aside nav button::after {
   transform-origin: center;
 }
 aside nav button.active::after { transform: scaleY(1); }
+/* Sits UNDER the icon and label, not above them — an underline reads as "you are here",
+   whereas a bar floating over the icon looks like a stray divider. */
 .bottom-nav button::after {
-  inset-block-start: 0;
-  inset-inline: 25%;
+  inset-block-end: 0.15rem;
+  inset-inline: 28%;
   height: 3px;
   transform-origin: center;
 }
@@ -450,6 +468,57 @@ aside nav button.active::after { transform: scaleY(1); }
 .profile-card label { display: block; font-size: 0.875rem; font-weight: 550; margin-bottom: var(--space-1); }
 .profile-card > div > b { display: block; font-size: 1.0625rem; }
 .profile-card > div > span { opacity: 0.7; font-size: 0.875rem; }
+
+/* Avatar self-service */
+.avatar-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+/* A file input can't be styled, so the <label> is the control and the input is hidden. */
+.as-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
+}
+.as-button:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Attendance — the figure that says whether calls turned into people in a classroom,
+   so it is given its own block rather than hidden among the call metrics. */
+.attendance-block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.attendance-block .metric-input { flex: 0 0 9rem; }
+.attendance-block .hint { flex: 1 1 14rem; margin: 0; align-self: center; }
+
+.review-attendance {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+}
+.review-attendance label { flex: 1 1 9rem; margin: 0; }
+.review-attendance input { width: 100%; }
+.attendance-summary { flex: 1 1 100%; font-size: 0.8125rem; opacity: 0.75; }
+
+.empty-cell { text-align: center; padding: var(--space-5); opacity: 0.65; }
+[data-theme='dark'] .attendance-block { background: #131d2a; }
 
 /* Admin actions inside the review card — destructive work is visually separated. */
 .admin-actions {
@@ -577,6 +646,7 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   --line: #22303f;
   --bg-subtle: #131d2a;
   --page-fade: #0e1621;
+  --heading: #eaf1f9;
 
   /* The base sheet uses --navy for ~25 TEXT rules (headings, labels, emphasis).
      At #123a63 those are near-invisible on a dark background — this is what made
@@ -658,6 +728,17 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
 /* Muted greys from the base sheet are too dim against #0e1621. */
 [data-theme='dark'] :is(.user-grid div span, .user-grid small, .eyebrow, figcaption, .hint) { color: #9fb2c6; }
 [data-theme='dark'] .page-head p { color: #a8bacd; }
+/* Surfaces the base sheet paints from its own light palette rather than a token.
+   Found by scanning computed backgrounds in the live dark page — .equation and
+   .day-report-bar were rendering light text on a near-white fill. */
+[data-theme='dark'] .day-report-bar { background: #16202c; border-color: var(--line); }
+[data-theme='dark'] .equation { background: #131d2a; border-color: var(--line); }
+[data-theme='dark'] .equation.invalid { background: #2c1618; border-color: #5b2b30; }
+[data-theme='dark'] .equation.valid { background: #10281d; border-color: #1e5138; }
+[data-theme='dark'] .validation-list { background: #2c1618; color: #f0919b; border-color: #5b2b30; }
+[data-theme='dark'] .avatar { background: #22303f; color: #cfe0f5; }
+[data-theme='dark'] .locked { background: #131d2a; border-color: var(--line); }
+
 [data-theme='dark'] .status.SUBMITTED { background: var(--yellow-light); color: #f0bf47; }
 [data-theme='dark'] .role-chip.AGENT { background: #17293c; color: #8fbdf0; }
 [data-theme='dark'] .role-chip.SUPERVISOR { background: #2c2410; color: #f0c65c; }

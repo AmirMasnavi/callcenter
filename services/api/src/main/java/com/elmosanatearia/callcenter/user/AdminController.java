@@ -69,8 +69,7 @@ public class AdminController {
 
  @PostMapping(value="/users/{id}/avatar",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) @Transactional
  public UserView avatar(@PathVariable Long id,@RequestPart("file") MultipartFile file,@AuthenticationPrincipal AppPrincipal p)throws java.io.IOException{
-  if(file.isEmpty()||file.getSize()>2_000_000)throw new IllegalArgumentException("حجم عکس باید کمتر از ۲ مگابایت باشد");
-  if(file.getContentType()==null||!file.getContentType().startsWith("image/"))throw new IllegalArgumentException("فایل انتخاب‌شده باید تصویر باشد");
+  AvatarController.validate(file);
   AppUser u=users.findById(id).orElseThrow();u.setAvatarBytes(file.getBytes());u.setAvatarContentType(file.getContentType());
   audit(p,"UPDATE_AVATAR",id,u.getUsername());return UserView.of(users.save(u));
  }

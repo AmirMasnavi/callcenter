@@ -23,7 +23,7 @@ public class ReportService {
   if(q.version()!=null && r.getId()!=null && q.version()!=r.getVersion()) throw new IllegalStateException("نسخه گزارش قدیمی است");
   String old=r.getId()==null?null:snapshot(r); boolean submitted=r.getStatus()==ReportStatus.SUBMITTED;
   r.setReportDate(q.reportDate());r.setReportLabel(clean(q.reportLabel()));
-  apply(r,q.totalPeople(),q.contactedCount(),q.okCount(),q.maybeCount(),q.noCount(),q.noAnswerCount(),q.notes());
+  apply(r,q.totalPeople(),q.contactedCount(),q.okCount(),q.maybeCount(),q.noCount(),q.noAnswerCount(),q.attendeeCount(),q.school(),q.notes());
   if(submitted){validate(r);revisions.save(new ReportRevision(r,user,"ویرایش اپراتور پیش از تأیید ناظر",old,snapshot(r)));}
   DailyReport saved=reports.saveAndFlush(r); audits.save(new AuditEvent(user,submitted?"EDIT_SUBMITTED":"SAVE_DRAFT","DailyReport",String.valueOf(saved.getId()),null)); return View.of(saved);
  }
@@ -58,7 +58,7 @@ public class ReportService {
   String old=snapshot(r); boolean changed=changed(r,q);
   if((changed||alreadyApproved) && (q.correctionReason()==null || q.correctionReason().isBlank())) throw new IllegalArgumentException("دلیل اصلاح الزامی است");
   if(alreadyApproved&&!changed) throw new IllegalArgumentException("برای اصلاح مجدد، حداقل یک مقدار را تغییر دهید");
-  apply(r,q.totalPeople(),q.contactedCount(),q.okCount(),q.maybeCount(),q.noCount(),q.noAnswerCount(),q.notes());validate(r);
+  apply(r,q.totalPeople(),q.contactedCount(),q.okCount(),q.maybeCount(),q.noCount(),q.noAnswerCount(),q.attendeeCount(),q.school(),q.notes());validate(r);
   if(changed) revisions.save(new ReportRevision(r,reviewer,q.correctionReason().trim(),old,snapshot(r)));
   r.setStatus(changed?ReportStatus.CORRECTED_APPROVED:ReportStatus.APPROVED);r.setReviewer(reviewer);r.setReviewedAt(Instant.now());
   audits.save(new AuditEvent(reviewer,changed?"CORRECT_AND_APPROVE":"APPROVE_REPORT","DailyReport",id.toString(),changed?q.correctionReason():null));
@@ -120,9 +120,36 @@ public class ReportService {
   return View.of(saved);
  }
  private DailyReport owned(Long id,Long uid){DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);if(!r.getAgent().getId().equals(uid))throw new SecurityException("دسترسی غیرمجاز");return r;}
- public static void validate(DailyReport r){if(r.getTotalPeople()<=0)throw new IllegalArgumentException("کل افراد باید بیشتر از صفر باشد");if(r.getContactedCount()>r.getTotalPeople())throw new IllegalArgumentException("تعداد تماس از کل افراد بیشتر است");if(r.outcomeTotal()!=r.getContactedCount())throw new IllegalArgumentException("جمع نتایج باید برابر تعداد تماس‌گرفته باشد");}
- private static void apply(DailyReport r,int total,int contacted,int ok,int maybe,int no,int noAnswer,String notes){r.setTotalPeople(total);r.setContactedCount(contacted);r.setOkCount(ok);r.setMaybeCount(maybe);r.setNoCount(no);r.setNoAnswerCount(noAnswer);r.setNotes(notes==null?null:notes.trim());}
- private static boolean changed(DailyReport r,ReviewRequest q){return r.getTotalPeople()!=q.totalPeople()||r.getContactedCount()!=q.contactedCount()||r.getOkCount()!=q.okCount()||r.getMaybeCount()!=q.maybeCount()||r.getNoCount()!=q.noCount()||r.getNoAnswerCount()!=q.noAnswerCount()||!Objects.equals(Objects.toString(r.getNotes(),""),Objects.toString(q.notes(),""));}
- private static String snapshot(DailyReport r){return "{\"total\":"+r.getTotalPeople()+",\"contacted\":"+r.getContactedCount()+",\"ok\":"+r.getOkCount()+",\"maybe\":"+r.getMaybeCount()+",\"no\":"+r.getNoCount()+",\"noAnswer\":"+r.getNoAnswerCount()+",\"notes\":\""+Objects.toString(r.getNotes(),"").replace("\"","'")+"\"}";}
+ public static void validate(DailyReport r){
+  if(r.getTotalPeople()<=0)throw new IllegalArgumentException("کل افراد باید بیشتر از صفر باشد");
+  if(r.getContactedCount()>r.getTotalPeople())throw new IllegalArgumentException("تعداد تماس از کل افراد بیشتر است");
+  if(r.outcomeTotal()!=r.getContactedCount())throw new IllegalArgumentException("جمع نتایج باید برابر تعداد تماس‌گرفته باشد");
+  // Attendance stays optional: the class may not have run yet when the report is filed.
+  if(r.getAttendeeCount()!=null){
+   if(r.getAttendeeCount()<0)throw new IllegalArgumentException("تعداد حاضرین نمی‌تواند منفی باشد");
+   if(r.getAttendeeCount()>r.getTotalPeople())throw new IllegalArgumentException("تعداد حاضرین از کل افراد بیشتر است");
+  }
+ }
+ private static void apply(DailyReport r,int total,int contacted,int ok,int maybe,int no,int noAnswer,Integer attendees,String school,String notes){
+  r.setTotalPeople(total);r.setContactedCount(contacted);r.setOkCount(ok);r.setMaybeCount(maybe);r.setNoCount(no);r.setNoAnswerCount(noAnswer);
+  r.setAttendeeCount(attendees);r.setSchool(clean(school));r.setNotes(notes==null?null:notes.trim());
+ }
+ private static boolean changed(DailyReport r,ReviewRequest q){
+  return r.getTotalPeople()!=q.totalPeople()||r.getContactedCount()!=q.contactedCount()||r.getOkCount()!=q.okCount()
+   ||r.getMaybeCount()!=q.maybeCount()||r.getNoCount()!=q.noCount()||r.getNoAnswerCount()!=q.noAnswerCount()
+   ||!Objects.equals(r.getAttendeeCount(),q.attendeeCount())
+   ||!Objects.equals(Objects.toString(r.getSchool(),""),Objects.toString(clean(q.school()),""))
+   ||!Objects.equals(Objects.toString(r.getNotes(),""),Objects.toString(q.notes(),""));
+ }
+ private static String snapshot(DailyReport r){
+  return "{\"total\":"+r.getTotalPeople()+",\"contacted\":"+r.getContactedCount()+",\"ok\":"+r.getOkCount()
+   +",\"maybe\":"+r.getMaybeCount()+",\"no\":"+r.getNoCount()+",\"noAnswer\":"+r.getNoAnswerCount()
+   +",\"attendees\":"+r.getAttendeeCount()
+   +",\"school\":\""+escape(r.getSchool())+"\",\"notes\":\""+escape(r.getNotes())+"\"}";
+ }
+ /** Hand-built JSON, so every control character has to be dealt with explicitly. */
+ private static String escape(String value){
+  return Objects.toString(value,"").replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","\\r").replace("\t","\\t");
+ }
  private static String clean(String value){return value==null||value.isBlank()?null:value.trim();}
 }
