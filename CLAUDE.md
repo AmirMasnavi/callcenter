@@ -37,9 +37,27 @@ could change → MEMORY.md.
 
 ## Roles & Access
 
-`AGENT` (operator) → `SUPERVISOR` → `MANAGER` / `ADMIN`. Route prefixes enforce this in
-`SecurityConfig`: `/api/v1/admin/**` = ADMIN, `/api/v1/supervisor/**` = SUPERVISOR+ADMIN,
+**A user holds a SET of roles** (`user_roles` table), not one. `AppPrincipal` grants one
+`ROLE_*` authority per role, so `hasAnyRole(...)` in `SecurityConfig` works unchanged.
+Route prefixes: `/api/v1/admin/**` = ADMIN, `/api/v1/supervisor/**` = SUPERVISOR+ADMIN,
 `/api/v1/dashboard/**` and `/api/v1/exports/**` = MANAGER+ADMIN.
+
+When checking access, **test the widest role first**. Someone who is both SUPERVISOR and
+ADMIN must get admin breadth, not supervisor narrowness — see `assertCanReview`.
+
+Admin extras: sees/acts on every report, void+restore (soft delete), reopen an approved
+report, and impersonate a user (a real session swap — admin routes 403 while impersonating).
+
+## Frontend conventions
+
+- Nav is the **union** of the user's roles (`NAV` in `App.tsx`); never key UI off a single role.
+- **Appearance defaults to light and never silently follows the OS.** Dark is an explicit
+  choice in Profile (`lib/theme.ts` sets `data-theme`; `theme.css` keys the dark palette off it).
+  Do not reintroduce a bare `@media (prefers-color-scheme: dark)` — it takes the choice away.
+- `theme.css` loads **last** and carries the apple-design layer (materials, motion,
+  typography, a11y preferences). The older sheets hardcode a light palette, so any new
+  surface added there needs a matching `[data-theme='dark']` rule or it breaks dark mode.
+- Persian digits everywhere user-facing — use `fa()`, never a raw number in Persian copy.
 
 ## Code Style
 
@@ -62,15 +80,21 @@ could change → MEMORY.md.
   login returns 403. curl hides this because it sends no `Origin` header.
 - Report validation runs on **submit**, not on draft save. Drafts are intentionally allowed to
   hold inconsistent numbers.
+- Password minimum is 8 (`AuthController.MIN_PASSWORD_LENGTH`, mirrored in `lib/api.ts`).
+  Changing a *temporary* password does not require the current one — the user just proved it
+  at login. Voluntary changes still do.
+- Voiding is a **soft delete**. Never hard-delete a report: revisions and audit rows point at it.
 
 ## Verifying a change actually works
 
 ```bash
 docker compose up -d --build
 ```
-App on http://localhost:8088. Demo users (when `DEMO_USERS_ENABLED=true`):
-`operator` / `supervisor` / `manager`, password `Demo12345!`; admin from `.env`.
-All seeded users have `mustChangePassword=true` on first login.
+App on http://localhost:8088. Demo users (when `DEMO_USERS_ENABLED=true`), password
+`Demo12345!`: `operator`, `supervisor`, `manager`, and **`lead`** — which holds
+SUPERVISOR *and* MANAGER and is the account to use when checking multi-role behaviour.
+Admin comes from `.env`. Seeded users start with `mustChangePassword=true`, which now
+shows a dismissible prompt rather than blocking access.
 
 ## References
 

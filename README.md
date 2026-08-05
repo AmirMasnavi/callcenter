@@ -27,11 +27,19 @@ Designed for high data integrity, the system uses optimistic locking for concurr
 
 ## ✨ Key Features
 
-- **Role-Based Access Control (RBAC):**
+- **Role-Based Access Control (RBAC):** a user may hold **any combination** of these roles,
+  and the interface shows the union of what they grant.
   - **Operator:** Submit, update, and manage draft or pending daily reports.
   - **Supervisor:** Review, approve, reject, or request revisions on team reports with recorded audit logs.
   - **Manager:** Access team analytics, high-level dashboards, performance trends, and Excel/CSV exports.
-  - **Admin:** Manage user accounts, role assignments, password resets, and user activation states.
+  - **Admin:** Manage user accounts, role assignments, password resets, and user activation states —
+    plus authority over every report: review any team's, void/restore, reopen an approved report,
+    and view the app as another user (all written to the audit log).
+
+- **Accounts & Appearance:**
+  - Passwords are a minimum of 8 characters. A temporary password is changed from the Profile
+    page without retyping it, and never blocks access to the app.
+  - Light appearance by default, with an explicit light / dark / follow-system choice.
 
 - **Report Lifecycle & Concurrency:**
   - Multiple reports per date per agent with customizable labels/titles.
@@ -95,12 +103,16 @@ Access the application at `http://localhost:8088`.
 > [!IMPORTANT]
 > Change default temporary passwords upon first login. For production deployments, set `DEMO_USERS_ENABLED=false` in `.env`.
 
-| Role | Username | Temporary Password | Description |
+| Role(s) | Username | Temporary Password | Description |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin` | `ChangeMe123!` | User management & system settings |
+| **Admin** | `admin` | `ChangeMe123!` | User management, plus full authority over every report |
 | **Manager** | `manager` | `Demo12345!` | Overall metrics & team exports |
 | **Supervisor** | `supervisor` | `Demo12345!` | Report review & approval workflows |
 | **Operator** | `operator` | `Demo12345!` | Daily report entry & editing |
+| **Supervisor + Manager** | `lead` | `Demo12345!` | Demonstrates multiple roles on one account |
+
+A user can hold **several roles at once**; the navigation shows the union of everything their
+roles grant. Assign roles with the checkboxes in the admin user editor.
 
 *Note: The database user `callcenter` is reserved for PostgreSQL internal connections and is not an application login.*
 

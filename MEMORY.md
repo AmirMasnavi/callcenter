@@ -21,6 +21,31 @@
 - **Seed users via `BootstrapConfig`.** Admin always created; demo users only when
   `DEMO_USERS_ENABLED=true`. All seeded accounts get `mustChangePassword=true`.
 
+### 2026-08-05 — Multi-role, auth UX, admin powers, and an Apple-design pass
+
+Four changes requested together, all shipped and verified against the running stack:
+
+1. **Multi-role.** `app_users.role` → `user_roles` (V4). Existing rows backfilled; verified
+   against the live database. Access checks now test the widest role first, so a
+   SUPERVISOR+ADMIN gets admin breadth. Demo user `lead` exists to exercise this.
+2. **Auth UX.** Password minimum 10 → 8. The blocking change-password wall is gone: people
+   enter the app and see a dismissible prompt. Changing a *temporary* password no longer
+   asks for the current one (the user's explicit request — they just typed it at login);
+   voluntary changes still do.
+3. **Admin powers.** See/act on all reports, void+restore, reopen approved, impersonate.
+   Impersonation is a real session swap, confirmed by admin routes returning 403 while active.
+4. **Design.** apple-design skill applied via `theme.css` + `lib/motion.ts`.
+
+**Appearance defaults to light on purpose.** The first pass followed
+`prefers-color-scheme` and the user pushed back — dark is hard to read for some people. It
+is now an explicit light/dark/system choice in Profile. Do not revert to auto-following the OS.
+
+Two defects were caught only by looking at real screenshots, not by the build: dark mode was
+half-applied (the older sheets hardcode `white` and `#fafcff`, which the token layer doesn't
+reach), and `display: contents` on the user-card button removed it from the accessibility
+tree, leaving unnamed buttons. Both fixed. The lesson holds generally — a green build says
+nothing about whether the UI is right.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
@@ -31,11 +56,12 @@
 - **`ReportService.snapshot()` hand-builds JSON via string concatenation** and escapes only
   `"` → `'`. Newlines and backslashes in `notes` will produce malformed JSON in the
   `report_revisions` old/new value columns. Should use Jackson.
-- **`AdminController.apply()` does not validate that `supervisorId` refers to a SUPERVISOR.**
-  An AGENT can be assigned another AGENT as supervisor, which silently breaks the
-  team-scoping check in `ReportService.assertCanReview()`.
-- **No self-lockout guard in admin user editing.** An admin can deactivate or demote
-  themselves / the last remaining admin.
+- ~~`AdminController.apply()` does not validate `supervisorId`~~ — fixed 2026-08-05.
+- ~~No self-lockout guard in admin user editing~~ — fixed 2026-08-05 (`guardLastAdmin`).
+- **The older stylesheets (`styles.css`, `usability.css`, 1.8k lines) hardcode a light
+  palette.** `theme.css` remaps them for dark mode selector-by-selector. Any new surface
+  added to the old sheets needs a matching `[data-theme='dark']` rule or dark mode breaks
+  in that one spot. Converting those sheets to tokens would remove the whole class of bug.
 - **Avatar fetch is open to any authenticated user** (`GET /api/v1/users/{id}/avatar`), with
   no role or team scoping.
 - **Test coverage is thin** — 3 backend tests and 2 frontend tests against 27 Java files.

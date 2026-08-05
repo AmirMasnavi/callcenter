@@ -47,19 +47,33 @@ The system relies on PostgreSQL for persistent storage and uses **Flyway** for d
 Initial table definitions, primary constraints, and indexes.
 
 #### `app_users` Table
-Stores authentication credentials, user roles, supervisor relationships, and password change flags.
+Stores authentication credentials, supervisor relationships, and password change flags.
 ```sql
 CREATE TABLE app_users (
   id BIGSERIAL PRIMARY KEY,
   username VARCHAR(80) NOT NULL UNIQUE,
   password_hash VARCHAR(100) NOT NULL,
   display_name VARCHAR(120) NOT NULL,
-  role VARCHAR(24) NOT NULL,
   supervisor_id BIGINT REFERENCES app_users(id),
   active BOOLEAN NOT NULL DEFAULT TRUE,
   must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+  avatar_bytes BYTEA,
+  avatar_content_type VARCHAR(80),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+> The single `role` column was removed in migration **V4**. Roles now live in `user_roles`,
+> so one user can hold several.
+
+#### `user_roles` Table (V4)
+One row per role a user holds.
+```sql
+CREATE TABLE user_roles (
+  user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  role    VARCHAR(24) NOT NULL,   -- AGENT | SUPERVISOR | MANAGER | ADMIN
+  PRIMARY KEY (user_id, role)
 );
 ```
 
@@ -83,7 +97,11 @@ CREATE TABLE daily_reports (
   reviewer_id BIGINT REFERENCES app_users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  version BIGINT NOT NULL DEFAULT 0
+  version BIGINT NOT NULL DEFAULT 0,
+  -- V5: voiding is a soft delete, so revisions and audit rows stay valid.
+  voided_at   TIMESTAMPTZ,
+  voided_by   BIGINT REFERENCES app_users(id),
+  void_reason VARCHAR(1000)
 );
 
 CREATE INDEX idx_reports_date_status ON daily_reports(report_date, status);
