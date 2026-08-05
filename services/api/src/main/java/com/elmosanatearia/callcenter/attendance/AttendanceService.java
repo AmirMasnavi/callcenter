@@ -22,7 +22,12 @@ import java.util.*;
 @Service
 public class AttendanceService {
     public static final ZoneId ZONE = ZoneId.of("Asia/Tehran");
-    private static final int DEFAULT_MONTHLY_HOURS = 150;
+
+    /** Five hours a working day — 30 × 5 is the same 150 hours the month was always worth. */
+    private static final int DEFAULT_DAILY_TARGET_MINUTES = 300;
+
+    /** Friday is the weekend here; nobody is expected in, so it is not a day they are short. */
+    private static final DayOfWeek WEEKEND = DayOfWeek.FRIDAY;
 
     private final AttendanceRepository attendance;
     private final UserRepository users;
@@ -189,13 +194,19 @@ public class AttendanceService {
     // -------------------------------------------------------------- reports
 
     /**
-     * @param workedMinutes total across the range, from real clock times — NOT days × hours
-     * @param targetHours   the person's monthly target, or the system default
-     * @param daysPresent   distinct days with at least one shift
+     * @param workedMinutes  total across the range, from real clock times — NOT days × hours
+     * @param daysPresent    distinct days with at least one shift
+     * @param expectedDays   working days the range contains, so a ten-day view is judged
+     *                       against ten days rather than a month it could never reach
+     * @param targetMinutes  {@code expectedDays × dailyTargetMinutes} — the period's target
+     * @param daysShort      expected days with no attendance at all; a separate concern from
+     *                       hours, because turning up for eight of ten days and turning up
+     *                       late every day are different problems
      */
     public record StaffSummary(Long userId, String displayName, String username,
                                long workedMinutes, int daysPresent, int shifts,
-                               int targetHours, double targetPercent,
+                               int expectedDays, int daysShort,
+                               int dailyTargetMinutes, long targetMinutes, double targetPercent,
                                long reports, long contacted, long ok, long attendees,
                                double successRate) {}
 
@@ -222,7 +233,8 @@ public class AttendanceService {
                         ReportStatus.CORRECTED_APPROVED))
                 .forEach(r -> work.computeIfAbsent(r.getAgent().getId(), k -> new ArrayList<>()).add(r));
 
-        int defaultTarget = settings.getInt("attendance.default-monthly-hours", DEFAULT_MONTHLY_HOURS);
+        int defaultDaily = settings.getInt("attendance.daily-target-minutes", DEFAULT_DAILY_TARGET_MINUTES);
+        int expectedDays = workingDaysBetween(from, to);
 
         // Active operators, plus anyone who actually worked in the range. Someone who left
         // mid-period is still owed their hours, and payroll has to be able to print them —
@@ -243,13 +255,59 @@ public class AttendanceService {
             long attendees = rs.stream().filter(r -> r.getAttendeeCount() != null)
                     .mapToLong(DailyReport::getAttendeeCount).sum();
 
-            int target = u.getMonthlyHoursTarget() != null ? u.getMonthlyHoursTarget() : defaultTarget;
+            int daily = u.getDailyTargetMinutes() != null ? u.getDailyTargetMinutes() : defaultDaily;
+            long target = (long) expectedDays * daily;
             return new StaffSummary(u.getId(), u.getDisplayName(), u.getUsername(),
-                    minutes, days, mine.size(), target,
-                    target == 0 ? 0 : minutes * 100d / (target * 60d),
+                    minutes, days, mine.size(),
+                    expectedDays, Math.max(0, expectedDays - days),
+                    daily, target,
+                    target == 0 ? 0 : minutes * 100d / target,
                     rs.size(), contacted, ok, attendees,
                     contacted == 0 ? 0 : ok * 100d / contacted);
         }).sorted(Comparator.comparing(StaffSummary::displayName)).toList();
+    }
+
+    /**
+     * Refuses to let a range be settled while somebody is still inside it unclocked.
+     *
+     * <p>An open shift counts as zero minutes, so closing a pay period over one would freeze
+     * that person's day at nothing and there would be no way to correct it afterwards. Better
+     * to say so before the money is worked out than to discover it on a payslip.
+     */
+    @Transactional(readOnly = true)
+    public void assertNoOpenShifts(LocalDate from, LocalDate to) {
+        List<String> stranded = attendance
+                .between(from.atStartOfDay(ZONE).toInstant(), to.plusDays(1).atStartOfDay(ZONE).toInstant())
+                .stream().filter(AttendanceEntry::isOpen)
+                .map(e -> e.getUser().getDisplayName()).distinct().toList();
+        if (!stranded.isEmpty())
+            throw new IllegalStateException(
+                    "ابتدا خروج این افراد را ثبت کنید: " + String.join("، ", stranded));
+    }
+
+    /**
+     * Working days the range contains — the denominator behind every target.
+     *
+     * <p>Counting calendar days would make a target nobody can hit and would penalise people
+     * for weekends. Both ends are inclusive: a range of "today to today" is one day.
+     */
+    static int workingDaysBetween(LocalDate from, LocalDate to) {
+        int days = 0;
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1))
+            if (d.getDayOfWeek() != WEEKEND) days++;
+        return days;
+    }
+
+    /** The date N working days back, so "۳۰ روز" means thirty *expected* days, not a month. */
+    public static LocalDate startOfLastWorkingDays(LocalDate endInclusive, int workingDays) {
+        if (workingDays < 1) return endInclusive;
+        LocalDate d = endInclusive;
+        int counted = d.getDayOfWeek() != WEEKEND ? 1 : 0;
+        while (counted < workingDays) {
+            d = d.minusDays(1);
+            if (d.getDayOfWeek() != WEEKEND) counted++;
+        }
+        return d;
     }
 
     /** One person, day by day — the on-screen equivalent of their paper sheet. */

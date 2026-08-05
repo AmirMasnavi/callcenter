@@ -34,7 +34,8 @@ const NAV: NavItem[] = [
   { path: '/app/schools',   icon: 'school',  label: 'مدارس',          needs: ['MANAGE_SCHOOLS'] },
   { path: '/app/security',  icon: 'key',     label: 'امنیت',          needs: ['MANAGE_SETTINGS'] },
   { path: '/app/ledger',    icon: 'sheet',   label: 'دفتر گزارش‌ها',  needs: ['VIEW_ALL_REPORTS'] },
-  { path: '/app/attendance',icon: 'clock',   label: 'ورود و خروج',    needs: ['RECORD_ATTENDANCE'] },
+  // A manager may look at who is in without being able to write to it (VIEW_PRESENCE).
+  { path: '/app/attendance',icon: 'clock',   label: 'ورود و خروج',    needs: ['RECORD_ATTENDANCE', 'VIEW_PRESENCE'] },
   { path: '/app/timesheet', icon: 'hours',   label: 'ساعات کاری',     needs: ['VIEW_ATTENDANCE'] },
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
@@ -71,10 +72,17 @@ const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
   { needs: 'SUBMIT_REPORTS', order: ['/app/report', '/app/history', '/app/profile'] },
 ];
 
-/** Full list for the sidebar, ranked the same way the bottom bar ranks its four. */
+/*
+ * Full list for the sidebar, ranked the same way the bottom bar ranks its four.
+ *
+ * The account is deliberately NOT here: on desktop the identity card in the footer is the way
+ * in, which is where people look for it and where it stops landing halfway down the list
+ * between two unrelated destinations. The bottom bar still carries it on mobile, where there
+ * is no footer.
+ */
 function sidebarNav(items: NavItem[], me: Me): NavItem[] {
   const order = PRIORITY_BY_PERSONA.find(p => me.permissions?.includes(p.needs))?.order ?? [];
-  return [...items].sort((a, b) => {
+  return [...items].filter(i => i.path !== '/app/profile').sort((a, b) => {
     const ia = order.indexOf(a.path), ib = order.indexOf(b.path);
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
@@ -198,12 +206,19 @@ export default function App() {
           ))}
         </nav>
         <div className="aside-user">
-          <div className="avatar">
-            {user.displayName.slice(0, 1)}
-            <img src={apiUrl(`/api/v1/users/${user.id}/avatar`)} alt=""
-                 onError={e => (e.currentTarget.style.display = 'none')} />
-          </div>
-          <div><b>{user.displayName}</b><span>{badge}</span></div>
+          {/* The identity card is the way into the account — that is where people look, and
+              it keeps "حساب من" out of the middle of the destination list. */}
+          <button className={'aside-identity' + (active === '/app/profile' ? ' active' : '')}
+                  onClick={() => navigate('/app/profile')}
+                  aria-current={active === '/app/profile' ? 'page' : undefined}
+                  title="حساب من">
+            <div className="avatar">
+              {user.displayName.slice(0, 1)}
+              <img src={apiUrl(`/api/v1/users/${user.id}/avatar`)} alt=""
+                   onError={e => (e.currentTarget.style.display = 'none')} />
+            </div>
+            <div><b>{user.displayName}</b><span>{badge}</span></div>
+          </button>
           <button className="logout-btn" onClick={logout} title="خروج از حساب">
             <Icon name="logout" label="خروج از حساب" />
           </button>

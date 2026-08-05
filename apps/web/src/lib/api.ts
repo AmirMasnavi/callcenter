@@ -6,7 +6,8 @@ export const MIN_PASSWORD_LENGTH=8;
 
 export type Permission=
  'SUBMIT_REPORTS'|'REVIEW_REPORTS'|'VIEW_ALL_REPORTS'|'VIEW_DASHBOARD'|'EXPORT_DATA'|
- 'MANAGE_USERS'|'MANAGE_ROLES'|'VIEW_AUDIT'|'MANAGE_SCHOOLS'|'MANAGE_SETTINGS'|'ARCHIVE_REPORTS'|'RECORD_ATTENDANCE'|'VIEW_ATTENDANCE'|'VOID_REPORT'|'REOPEN_REPORT'|'IMPERSONATE';
+ 'MANAGE_USERS'|'MANAGE_ROLES'|'VIEW_AUDIT'|'MANAGE_SCHOOLS'|'MANAGE_SETTINGS'|'ARCHIVE_REPORTS'|
+ 'RECORD_ATTENDANCE'|'VIEW_PRESENCE'|'VIEW_ATTENDANCE'|'CLOSE_PAYROLL_PERIOD'|'VOID_REPORT'|'REOPEN_REPORT'|'IMPERSONATE';
 
 /** A user may hold several roles at once; `impersonatedBy` is set while an admin views as them. */
 export interface Me{id:number;username:string;displayName:string;roles:Role[];permissions:Permission[];mustChangePassword:boolean;impersonatedBy?:number|null}
@@ -35,7 +36,20 @@ export const can=(me:Pick<Me,'permissions'>|null|undefined,...required:Permissio
 export const canAny=(me:Pick<Me,'permissions'>|null|undefined,...candidates:Permission[])=>
  !!me&&candidates.some(p=>me.permissions?.includes(p));
 
-export const roleLabel:Record<Role,string>={AGENT:'اپراتور',SUPERVISOR:'ناظر',MANAGER:'مدیر',OFFICE_MANAGER:'مسئول دفتر',PAYROLL:'مسئول حقوق و دستمزد',ADMIN:'مدیر سامانه'};
+/*
+ * Short enough to sit on one line in a tag. «مسئول حقوق و دستمزد» wrapped under the name on a
+ * user card and collided with it; the full wording lives in roleDescription instead.
+ */
+export const roleLabel:Record<Role,string>={AGENT:'اپراتور',SUPERVISOR:'ناظر',MANAGER:'مدیر',OFFICE_MANAGER:'مسئول دفتر',PAYROLL:'حقوق و دستمزد',ADMIN:'مدیر سامانه'};
+
+/** The unabbreviated wording, for tooltips and anywhere there is room to be explicit. */
+export const roleDescription:Record<Role,string>={AGENT:'اپراتور مرکز تماس',SUPERVISOR:'ناظر تیم',MANAGER:'مدیر مجموعه',OFFICE_MANAGER:'مسئول دفتر',PAYROLL:'مسئول حقوق و دستمزد',ADMIN:'مدیر سامانه'};
+
+/*
+ * A colour per role, so a card is scannable without reading every tag. Tokens rather than
+ * literals — these have to hold up in dark mode too.
+ */
+export const roleTone:Record<Role,string>={AGENT:'tone-blue',SUPERVISOR:'tone-amber',MANAGER:'tone-green',OFFICE_MANAGER:'tone-teal',PAYROLL:'tone-violet',ADMIN:'tone-slate'};
 
 export const permissionLabel:Record<Permission,string>={
  SUBMIT_REPORTS:'ثبت و ارسال گزارش',
@@ -49,7 +63,9 @@ export const permissionLabel:Record<Permission,string>={
  MANAGE_SCHOOLS:'مدیریت فهرست مدارس',
  ARCHIVE_REPORTS:'بایگانی گزارش‌ها',
  RECORD_ATTENDANCE:'ثبت ورود و خروج پرسنل',
+ VIEW_PRESENCE:'مشاهده حاضرین (بدون ثبت)',
  VIEW_ATTENDANCE:'گزارش ساعات کاری و حقوق',
+ CLOSE_PAYROLL_PERIOD:'بستن دوره حقوق',
  MANAGE_SETTINGS:'تنظیمات امنیتی سامانه',
  VOID_REPORT:'ابطال و بازگردانی گزارش',
  REOPEN_REPORT:'بازگشایی گزارش تأییدشده',

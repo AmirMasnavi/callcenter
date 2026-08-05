@@ -1,4 +1,4 @@
-import{useEffect,useMemo,useState}from'react';import{useQuery}from'@tanstack/react-query';import ReactECharts from'echarts-for-react';import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';import JalaliDate,{todayIso}from'../components/JalaliDate';
+import{useEffect,useMemo,useState}from'react';import{useQuery}from'@tanstack/react-query';import ReactECharts from'../lib/echarts';import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';import JalaliDate,{todayIso}from'../components/JalaliDate';
 const daysAgoIso=(n:number)=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};import Loading from'../components/Loading';
 import{chartBase,useChartTheme}from'../lib/chartTheme';
 import{toCsv,download as saveFile}from'../lib/exportTable';

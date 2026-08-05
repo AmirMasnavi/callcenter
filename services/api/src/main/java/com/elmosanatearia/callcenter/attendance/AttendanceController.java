@@ -12,6 +12,7 @@ import java.io.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/attendance")
@@ -70,6 +71,20 @@ public class AttendanceController {
 
     // --- payroll reporting (VIEW_ATTENDANCE) ---
 
+    /**
+     * The date range covering the last {@code days} *working* days.
+     *
+     * <p>The presets mean expected days, not calendar days — "۳۰ روز" is a pay period of
+     * thirty days someone was due in, and counting Fridays into it would quietly lower the
+     * target. The client asks the server so both agree on where the weekend falls.
+     */
+    @GetMapping("/window")
+    public Map<String, String> window(@RequestParam int days) {
+        LocalDate today = LocalDate.now(AttendanceService.ZONE);
+        return Map.of("from", AttendanceService.startOfLastWorkingDays(today, days).toString(),
+                      "to", today.toString());
+    }
+
     @GetMapping("/report")
     public List<AttendanceService.StaffSummary> report(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -99,10 +114,14 @@ public class AttendanceController {
     @GetMapping(value = "/report.xlsx", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public ResponseEntity<byte[]> excel(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) throws IOException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long userId) throws IOException {
 
         // One pass for both sheets — asking per person re-derived the whole report each time.
-        var sheets = service.details(from, to);
+        // `userId` narrows it to one person without changing the shape of the workbook.
+        var sheets = service.details(from, to).stream()
+                .filter(d -> userId == null || d.summary().userId().equals(userId))
+                .toList();
         var summaries = sheets.stream().map(AttendanceService.StaffDetail::summary).toList();
         DateTimeFormatter time = DateTimeFormatter.ofPattern("HH:mm").withZone(AttendanceService.ZONE);
 
@@ -112,8 +131,9 @@ public class AttendanceController {
 
             var sheet = wb.createSheet("خلاصه ساعات");
             sheet.setRightToLeft(true);
-            String[] headers = {"پرسنل", "ساعات کارکرد", "روزهای حضور", "تعداد شیفت",
-                                "سقف ماهانه (ساعت)", "درصد تحقق", "گزارش", "تماس", "OK", "حاضرین", "درصد موفقیت"};
+            String[] headers = {"پرسنل", "ساعات کارکرد", "روزهای حضور", "روزهای کاری بازه",
+                                "روزهای غیبت", "تعداد شیفت", "سقف بازه (ساعت)", "درصد تحقق",
+                                "گزارش", "تماس", "OK", "حاضرین", "درصد موفقیت"};
             var head = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) { var c = head.createCell(i); c.setCellValue(headers[i]); c.setCellStyle(bold); }
 
@@ -124,14 +144,16 @@ public class AttendanceController {
                 // Hours as a decimal so Excel can sum the column; minutes stay exact upstream.
                 row.createCell(1).setCellValue(Math.round(s.workedMinutes() / 60d * 100) / 100d);
                 row.createCell(2).setCellValue(s.daysPresent());
-                row.createCell(3).setCellValue(s.shifts());
-                row.createCell(4).setCellValue(s.targetHours());
-                row.createCell(5).setCellValue(Math.round(s.targetPercent() * 10) / 10d);
-                row.createCell(6).setCellValue(s.reports());
-                row.createCell(7).setCellValue(s.contacted());
-                row.createCell(8).setCellValue(s.ok());
-                row.createCell(9).setCellValue(s.attendees());
-                row.createCell(10).setCellValue(Math.round(s.successRate() * 10) / 10d);
+                row.createCell(3).setCellValue(s.expectedDays());
+                row.createCell(4).setCellValue(s.daysShort());
+                row.createCell(5).setCellValue(s.shifts());
+                row.createCell(6).setCellValue(Math.round(s.targetMinutes() / 60d * 100) / 100d);
+                row.createCell(7).setCellValue(Math.round(s.targetPercent() * 10) / 10d);
+                row.createCell(8).setCellValue(s.reports());
+                row.createCell(9).setCellValue(s.contacted());
+                row.createCell(10).setCellValue(s.ok());
+                row.createCell(11).setCellValue(s.attendees());
+                row.createCell(12).setCellValue(Math.round(s.successRate() * 10) / 10d);
             }
             for (int i = 0; i < headers.length; i++) sheet.autoSizeColumn(i);
 
@@ -159,8 +181,10 @@ public class AttendanceController {
             for (int i = 0; i < dh.length; i++) detail.autoSizeColumn(i);
 
             wb.write(out);
+            // The filename says what is inside, so a folder of exports stays readable.
+            String name = "attendance-" + from + "-" + to + (userId == null ? "" : "-" + userId) + ".xlsx";
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=attendance.xlsx")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + name)
                     .body(out.toByteArray());
         }
     }

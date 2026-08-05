@@ -865,7 +865,8 @@ aside nav button { justify-content: flex-start; padding-inline: var(--space-3); 
   :is(.charts section, .chart-card, .table-card, .form-card, .profile-card) { padding: var(--space-4); }
   .table-scroll { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
   .head-actions { width: 100%; }
-  .head-actions button { flex: 1; }
+  /* Stretching to fill the row is fine; breaking "کاربر جدید" across two lines is not. */
+  .head-actions button, .head-actions a { flex: 1; white-space: nowrap; }
 }
 
 /* ==================================================== always-dark surfaces
@@ -1710,6 +1711,47 @@ label.toggle input[type='checkbox'] {
   .segmented button { min-height: var(--tap-target); }
 }
 
+/*
+ * Role tags carry a colour each, so a wall of user cards is scannable without reading every
+ * label. Tinted background with a matching darker text — a solid fill at this size fights the
+ * card, and grey-on-grey made every role look identical.
+ */
+.tone-blue, .tone-amber, .tone-green, .tone-teal, .tone-violet, .tone-slate {
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.tone-blue   { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.tone-amber  { background: var(--warning-tint);  color: var(--warning-strong, var(--warning)); }
+.tone-green  { background: var(--success-tint);  color: var(--success-strong, var(--success)); }
+.tone-teal   { background: color-mix(in srgb, #0d9488 14%, transparent); color: #0f766e; }
+.tone-violet { background: color-mix(in srgb, #7c3aed 14%, transparent); color: #6d28d9; }
+.tone-slate  { background: var(--surface-sunken); color: var(--text-secondary);
+               border-color: var(--border); }
+
+[data-theme='dark'] .tone-teal   { background: color-mix(in srgb, #2dd4bf 18%, transparent); color: #5eead4; }
+[data-theme='dark'] .tone-violet { background: color-mix(in srgb, #a78bfa 18%, transparent); color: #c4b5fd; }
+
+/* Filtering by role beats remembering how a role is worded well enough to search for it.
+   The count on each chip also answers "how many supervisors are there" without filtering. */
+.role-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.role-filter button { display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--tap-target); padding: 0.35rem 0.75rem; border-radius: 999px;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--border); }
+/* Only the "all" chip takes the neutral fill — the rest keep their role colour, which is the
+   whole point of the row. Scoped this way because a plain `.role-filter button` background
+   declared later in the file would override every .tone-* rule. */
+.role-filter button:not([class*='tone-']) { background: var(--surface-sunken); color: var(--text-secondary); }
+.role-filter button i { font-style: normal; font-size: 0.75rem; opacity: 0.75;
+  font-variant-numeric: tabular-nums; }
+.role-filter button.active { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+.role-filter button:not([class*='tone-']).active { background: var(--accent-fill); color: #fff;
+  border-color: transparent; box-shadow: none; }
+
+/* The chips wrap under the name when a role label is long, so they get their own row. */
+.role-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.role-chip { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; }
+
 /* A chart that owns the full width of the page rather than sharing a grid row. */
 .chart-card { padding: var(--space-5); border: 1px solid var(--border);
   border-radius: var(--radius-lg); margin-bottom: var(--space-4); }
@@ -1717,6 +1759,71 @@ label.toggle input[type='checkbox'] {
 /* Quick pay-period ranges. */
 .range-presets { flex: none; }
 .range-presets button { padding: 0.4rem 0.75rem; font-size: 0.8125rem; }
+
+/* The rule the figures are judged by, written out rather than left to be inferred. */
+.rule-note { margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); border-radius: var(--radius-sm);
+  font-size: 0.8125rem; color: var(--text-secondary); }
+.rule-note b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* Wage cycles: the open one, and what has been settled before it. */
+.period-bar { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3); scrollbar-width: thin; }
+.period-bar button { flex: none; min-width: 11rem; display: grid; gap: 0.15rem; text-align: start;
+  padding: var(--space-3); border-radius: var(--radius-md); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-primary); }
+.period-bar button b { font-size: 0.875rem; }
+.period-bar button span { font-size: 0.6875rem; color: var(--text-muted); }
+.period-bar button small { font-size: 0.75rem; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; }
+.period-bar button.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+/* The open cycle is the one still moving, so it is marked rather than left to be worked out. */
+.period-bar button.open b::after { content: ' ●'; color: var(--success); font-size: 0.625rem; }
+
+/* Someone who did not turn up at all on some expected days — a different problem from
+   short hours, and hidden inside a percentage. */
+.short-badge { flex: none; padding: 0.15rem 0.45rem; border-radius: 999px;
+  background: var(--danger-tint, var(--warning-tint)); color: var(--danger);
+  font-size: 0.6875rem; font-weight: 700; white-space: nowrap; }
+
+/* Export: one place, saying what each option produces. */
+.export-scope { display: flex; align-items: baseline; justify-content: space-between;
+  padding: var(--space-3); margin-bottom: var(--space-3);
+  background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.export-scope span { font-size: 0.8125rem; color: var(--text-muted); }
+.export-scope b { font-variant-numeric: tabular-nums; }
+.export-options { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.modal .export-option { display: flex; gap: var(--space-3); align-items: flex-start; width: 100%;
+  padding: var(--space-4); text-align: start; cursor: pointer; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-primary); }
+.modal .export-option:hover { border-color: var(--accent); }
+.modal .export-option b { display: block; margin-bottom: 0.2rem; }
+.modal .export-option span { font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.6; }
+
+.detail-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-3); }
+.detail-actions .secondary { display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--tap-target); padding-inline: var(--space-3); text-decoration: none;
+  border-radius: var(--radius-sm); font-size: 0.8125rem; }
+.detail-stats .negative b { color: var(--danger); }
+.detail-stats .positive b { color: var(--success); }
+
+/* Read-only presence: the state instead of the controls. */
+.presence-tag { flex: none; padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 700; }
+.presence-tag.in     { background: var(--success-tint); color: var(--success-strong, var(--success)); }
+.presence-tag.left   { background: var(--surface-sunken); color: var(--text-secondary); }
+.presence-tag.absent { background: var(--warning-tint); color: var(--warning-strong, var(--warning)); }
+
+/* The sidebar footer identity is the way into the account on desktop. */
+.aside-identity { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0;
+  padding: var(--space-2); border-radius: var(--radius-md); cursor: pointer;
+  background: transparent; border: none; text-align: start; color: inherit; }
+.aside-identity > div { min-width: 0; }
+.aside-identity b, .aside-identity span { display: block; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.aside-identity:hover { background: var(--surface-sunken); }
+.aside-identity.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
 /* The printable form is hidden on screen and is the ONLY thing printed. */
 .printable { display: none; }

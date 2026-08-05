@@ -64,12 +64,18 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/schools/**").hasAuthority("PERM_MANAGE_SCHOOLS")
                 .requestMatchers("/api/v1/admin/settings/**").hasAuthority("PERM_MANAGE_SETTINGS")
                 .requestMatchers("/api/v1/schools").authenticated()
-                // Recording is the front desk; the report side is payroll.
-                .requestMatchers("/api/v1/attendance/today", "/api/v1/attendance/*/in",
-                                 "/api/v1/attendance/*/manual", "/api/v1/attendance/*/entries",
+                // Three tiers, narrowest last so the specific paths win:
+                // seeing who is in, recording it, and reporting on the hours.
+                .requestMatchers("/api/v1/attendance/*/in", "/api/v1/attendance/*/manual",
+                                 "/api/v1/attendance/*/entries",
                                  "/api/v1/attendance/entries/**").hasAuthority("PERM_RECORD_ATTENDANCE")
                 .requestMatchers("/api/v1/attendance/report/**", "/api/v1/attendance/report",
+                                 "/api/v1/attendance/window",
                                  "/api/v1/attendance/report.xlsx").hasAuthority("PERM_VIEW_ATTENDANCE")
+                .requestMatchers("/api/v1/payroll/periods/close").hasAuthority("PERM_CLOSE_PAYROLL_PERIOD")
+                .requestMatchers("/api/v1/payroll/**").hasAuthority("PERM_VIEW_ATTENDANCE")
+                // A manager may look at the board without being able to write to it.
+                .requestMatchers("/api/v1/attendance/today").hasAuthority("PERM_VIEW_PRESENCE")
                 .requestMatchers("/api/v1/admin/impersonate/**").hasAuthority("PERM_IMPERSONATE")
                 .requestMatchers("/api/v1/admin/reports/*/void", "/api/v1/admin/reports/*/restore").hasAuthority("PERM_VOID_REPORT")
                 .requestMatchers("/api/v1/admin/reports/*/reopen").hasAuthority("PERM_REOPEN_REPORT")

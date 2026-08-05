@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, Permission, permissionLabel, Role, roleLabel } from '../lib/api';
+import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, Permission, permissionLabel, Role, roleDescription, roleLabel, roleTone } from '../lib/api';
 import Loading from '../components/Loading';
 import Sheet from '../components/Sheet';
 import Icon from '../components/Icon';
@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [avatar, setAvatar] = useState<File>();
   const [form, setForm] = useState(emptyForm);
   const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<Role>();
 
   const save = useMutation({
     mutationFn: async () => {
@@ -97,12 +98,17 @@ export default function AdminPage() {
   }
 
   const supervisors = q.data?.filter(u => u.roles.includes('SUPERVISOR')) ?? [];
-  // Searches name, username and role label, so "ناظر" finds every supervisor.
+  // Searches name, username and role label, so "ناظر" finds every supervisor. The role filter
+  // sits alongside it because typing a role name only works if you remember the wording.
   const shownUsers = (q.data ?? []).filter(u => {
+    if (roleFilter && !u.roles.includes(roleFilter)) return false;
     const term = query.trim();
     if (!term) return true;
     return `${u.displayName} ${u.username} ${u.roles.map(r => roleLabel[r]).join(' ')}`.includes(term);
   });
+  // Only offer a role someone actually holds — an empty filter result is a dead end.
+  const rolesInUse = (Object.keys(roleLabel) as Role[])
+    .filter(r => (q.data ?? []).some(u => u.roles.includes(r)));
 
   // Exports the list as shown, so what you download matches what you were looking at.
   function exportCurrent() {
@@ -161,6 +167,21 @@ export default function AdminPage() {
         </div>
       )}
 
+      {!auditMode && rolesInUse.length > 1 && (
+        <div className="role-filter" role="group" aria-label="فیلتر بر اساس نقش">
+          <button className={roleFilter ? '' : 'active'} onClick={() => setRoleFilter(undefined)}>
+            همه <i>{fa(q.data?.length ?? 0)}</i>
+          </button>
+          {rolesInUse.map(r => (
+            <button key={r} className={(roleFilter === r ? 'active ' : '') + roleTone[r]}
+                    title={roleDescription[r]}
+                    onClick={() => setRoleFilter(roleFilter === r ? undefined : r)}>
+              {roleLabel[r]} <i>{fa((q.data ?? []).filter(u => u.roles.includes(r)).length)}</i>
+            </button>
+          ))}
+        </div>
+      )}
+
       {auditMode ? (
         audit.isLoading ? <Loading /> : (
           <section className="table-card">
@@ -190,7 +211,11 @@ export default function AdminPage() {
                 </div>
                 <div><b>{u.displayName}</b><span>@{u.username}</span></div>
                 <div className="role-chips">
-                  {u.roles.map(r => <span key={r} className={'role-chip ' + r}>{roleLabel[r]}</span>)}
+                  {u.roles.map(r => (
+                    <span key={r} className={'role-chip ' + roleTone[r]} title={roleDescription[r]}>
+                      {roleLabel[r]}
+                    </span>
+                  ))}
                 </div>
                 <small>
                   {u.roles.includes('AGENT') ? `ناظر: ${u.supervisorName || 'تعیین نشده'}` : ''}

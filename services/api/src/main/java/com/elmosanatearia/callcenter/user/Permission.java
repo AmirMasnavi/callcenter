@@ -23,7 +23,9 @@ public enum Permission {
     MANAGE_SCHOOLS("مدیریت فهرست مدارس"),
     ARCHIVE_REPORTS("بایگانی گزارش‌ها"),
     RECORD_ATTENDANCE("ثبت ورود و خروج پرسنل"),
+    VIEW_PRESENCE("مشاهده حاضرین (بدون ثبت)"),
     VIEW_ATTENDANCE("گزارش ساعات کاری و حقوق"),
+    CLOSE_PAYROLL_PERIOD("بستن دوره حقوق"),
     MANAGE_SETTINGS("تنظیمات امنیتی سامانه"),
     VOID_REPORT("ابطال و بازگردانی گزارش"),
     REOPEN_REPORT("بازگشایی گزارش تأییدشده"),
@@ -39,10 +41,14 @@ public enum Permission {
         return switch (role) {
             case AGENT -> EnumSet.of(SUBMIT_REPORTS);
             case SUPERVISOR -> EnumSet.of(REVIEW_REPORTS, ARCHIVE_REPORTS);
-            case MANAGER -> EnumSet.of(VIEW_DASHBOARD, EXPORT_DATA, VIEW_ALL_REPORTS, MANAGE_SCHOOLS, ARCHIVE_REPORTS);
-            case OFFICE_MANAGER -> EnumSet.of(RECORD_ATTENDANCE);
+            // A manager wants to know who is in the building today; recording is the front
+            // desk's job, so they get the view without the ability to write to it.
+            case MANAGER -> EnumSet.of(VIEW_DASHBOARD, EXPORT_DATA, VIEW_ALL_REPORTS, MANAGE_SCHOOLS,
+                                       ARCHIVE_REPORTS, VIEW_PRESENCE);
+            case OFFICE_MANAGER -> EnumSet.of(RECORD_ATTENDANCE, VIEW_PRESENCE);
             // Payroll needs the hours AND the performance beside them, plus exports.
-            case PAYROLL -> EnumSet.of(VIEW_ATTENDANCE, VIEW_ALL_REPORTS, EXPORT_DATA);
+            case PAYROLL -> EnumSet.of(VIEW_ATTENDANCE, VIEW_PRESENCE, VIEW_ALL_REPORTS,
+                                       EXPORT_DATA, CLOSE_PAYROLL_PERIOD);
             case ADMIN -> EnumSet.allOf(Permission.class);
         };
     }

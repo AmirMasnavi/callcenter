@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, apiUrl, fa, faDateTime } from '../lib/api';
+import { api, apiUrl, can, fa, faDateTime, Me } from '../lib/api';
 import Loading from '../components/Loading';
 import Icon from '../components/Icon';
 import Sheet from '../components/Sheet';
@@ -25,6 +25,15 @@ export const asHours = (minutes: number) => {
   return `${fa(Math.floor(minutes / 60))}:${fa(mins).padStart(2, '۰')}`;
 };
 
+/**
+ * A balance against the target: "۳:۲۰+" over, "۵:۱۰−" under.
+ *
+ * The sign is what payroll actually reads — "how many hours short are they" is the question,
+ * and an unsigned figure leaves you working out which side of the target it falls on.
+ */
+export const signedHours = (minutes: number) =>
+  `${asHours(Math.abs(minutes))}${minutes < 0 ? '−' : '+'}`;
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** A local <input type="datetime-local"> value from an instant, for the adjust dialog. */
@@ -48,6 +57,12 @@ const faDayOf = (d: Date) =>
  */
 export default function AttendancePage() {
   const qc = useQueryClient();
+  /*
+   * A manager holds VIEW_PRESENCE but not RECORD_ATTENDANCE: they want to know who is in the
+   * building, while recording stays the front desk's job. Rather than a second page that
+   * would drift out of step, the same board drops its controls.
+   */
+  const canRecord = can(qc.getQueryData<Me>(['me']), 'RECORD_ATTENDANCE');
   const q = useQuery({
     queryKey: ['attendance-today'],
     queryFn: () => api<StaffState[]>('/api/v1/attendance/today'),
@@ -79,8 +94,10 @@ export default function AttendancePage() {
       <header className="page-head">
         <div>
           <span className="eyebrow">حضور و غیاب</span>
-          <h1>ورود و خروج پرسنل</h1>
-          <p>زمان با یک لمس ثبت می‌شود و در صورت نیاز قابل اصلاح است.</p>
+          <h1>{canRecord ? 'ورود و خروج پرسنل' : 'حاضرین امروز'}</h1>
+          <p>{canRecord
+            ? 'زمان با یک لمس ثبت می‌شود و در صورت نیاز قابل اصلاح است.'
+            : 'وضعیت لحظه‌ای پرسنل. ثبت ورود و خروج بر عهده مسئول دفتر است.'}</p>
         </div>
         <div className="head-actions">
           <div className="attendance-count">
@@ -88,9 +105,11 @@ export default function AttendancePage() {
           </div>
           {/* Someone forgets to check in, or the desk is unattended — the day still has to
               be recordable afterwards. */}
-          <button className="secondary" onClick={() => setManualFor(shown[0] ?? null)}>
-            <Icon name="plus" size={16} /><span>ثبت دستی</span>
-          </button>
+          {canRecord && (
+            <button className="secondary" onClick={() => setManualFor(shown[0] ?? null)}>
+              <Icon name="plus" size={16} /><span>ثبت دستی</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -121,17 +140,24 @@ export default function AttendancePage() {
                 </span>
               </div>
 
-              {s.openEntryId ? (
-                <button className="danger clock-btn" disabled={clockOut.isPending}
-                        onClick={() => clockOut.mutate(s)}>ثبت خروج</button>
+              {canRecord ? (
+                <>
+                  {s.openEntryId ? (
+                    <button className="danger clock-btn" disabled={clockOut.isPending}
+                            onClick={() => clockOut.mutate(s)}>ثبت خروج</button>
+                  ) : (
+                    <button className="primary clock-btn" disabled={clockIn.isPending}
+                            onClick={() => clockIn.mutate(s)}>ثبت ورود</button>
+                  )}
+                  <button className="icon-button" title="اصلاح زمان" onClick={() => setAdjusting(s)}>
+                    <Icon name="edit" size={16} label={`اصلاح زمان ${s.displayName}`} />
+                  </button>
+                </>
               ) : (
-                <button className="primary clock-btn" disabled={clockIn.isPending}
-                        onClick={() => clockIn.mutate(s)}>ثبت ورود</button>
+                <span className={'presence-tag ' + (s.openEntryId ? 'in' : s.shiftsToday ? 'left' : 'absent')}>
+                  {s.openEntryId ? 'داخل' : s.shiftsToday ? 'رفته' : 'نیامده'}
+                </span>
               )}
-
-              <button className="icon-button" title="اصلاح زمان" onClick={() => setAdjusting(s)}>
-                <Icon name="edit" size={16} label={`اصلاح زمان ${s.displayName}`} />
-              </button>
             </article>
           ))}
           {!shown.length && <div className="empty compact">پرسنلی پیدا نشد.</div>}

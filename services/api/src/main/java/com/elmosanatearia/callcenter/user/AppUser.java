@@ -37,8 +37,9 @@ public class AppUser {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
     /** Null falls back to the system default, so changing that moves everyone unset. */
-    @Column(name = "monthly_hours_target")
-    private Integer monthlyHoursTarget;
+    /** Expected worked minutes per working day; null means "use the system default". */
+    @Column(name = "daily_target_minutes")
+    private Integer dailyTargetMinutes;
     @Column(name="avatar_bytes") private byte[] avatarBytes;
     @Column(name="avatar_content_type",length=80) private String avatarContentType;
     @Column(name = "created_at", nullable = false)
@@ -71,8 +72,8 @@ public class AppUser {
     public void setSupervisor(AppUser supervisor) { this.supervisor = supervisor; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
-    public Integer getMonthlyHoursTarget() { return monthlyHoursTarget; }
-    public void setMonthlyHoursTarget(Integer v) { monthlyHoursTarget = v; }
+    public Integer getDailyTargetMinutes() { return dailyTargetMinutes; }
+    public void setDailyTargetMinutes(Integer v) { dailyTargetMinutes = v; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
     public byte[] getAvatarBytes(){return avatarBytes;} public void setAvatarBytes(byte[] value){avatarBytes=value;}
