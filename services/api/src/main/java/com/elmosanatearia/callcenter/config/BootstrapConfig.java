@@ -22,6 +22,8 @@ public class BootstrapConfig {
     if(users.findByUsernameIgnoreCase("manager").isEmpty()) create(users,encoder,"manager","مدیر نمونه",Set.of(Role.MANAGER),demoPassword,null);
     // Demonstrates the multi-role model: reviews their own team *and* sees company-wide analytics.
     if(users.findByUsernameIgnoreCase("lead").isEmpty()) create(users,encoder,"lead","سرپرست نمونه",Set.of(Role.SUPERVISOR,Role.MANAGER),demoPassword,null);
+    if(users.findByUsernameIgnoreCase("office").isEmpty()) create(users,encoder,"office","مسئول دفتر",Set.of(Role.OFFICE_MANAGER),demoPassword,null);
+    if(users.findByUsernameIgnoreCase("payroll").isEmpty()) create(users,encoder,"payroll","مسئول حقوق و دستمزد",Set.of(Role.PAYROLL),demoPassword,null);
    }
   };
  }

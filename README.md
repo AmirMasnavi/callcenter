@@ -59,6 +59,16 @@ Designed for high data integrity, the system uses optimistic locking for concurr
 - **Avatar & Profile Support:**
   - Secure profile avatar upload and binary storage.
 
+- **Attendance & payroll (ورود و خروج):**
+  - The office manager records each arrival and departure with one tap; the time is
+    pre-filled from the clock and can be adjusted to the minute.
+  - Several shifts per person per day are supported — worked time is derived from the
+    timestamps, never stored, so a correction can never leave a stale total behind.
+  - Payroll sees worked hours against each person's monthly target (default 150, overridable
+    per person) **alongside** their call performance for the same range.
+  - Excel export with two sheets (summary + day-by-day, mirroring the paper form), and a
+    print stylesheet that strips the app chrome.
+
 - **Data Export:**
   - Dynamic export to `.xlsx` (Apache POI) and `.csv` formats.
 
@@ -120,6 +130,8 @@ Access the application at `http://localhost:8088`.
 | **Supervisor** | `supervisor` | `Demo12345!` | Report review & approval workflows |
 | **Operator** | `operator` | `Demo12345!` | Daily report entry & editing |
 | **Supervisor + Manager** | `lead` | `Demo12345!` | Demonstrates multiple roles on one account |
+| **Office manager** | `office` | `Demo12345!` | Records staff arrivals and departures |
+| **Payroll** | `payroll` | `Demo12345!` | Worked hours + performance, Excel export |
 
 A user can hold **several roles at once**; the navigation shows the union of everything their
 roles grant. Assign roles with the checkboxes in the admin user editor.

@@ -14,6 +14,8 @@ const ProfilePage = lazy(() => import('./pages/Profile'));
 const SchoolsPage = lazy(() => import('./pages/SchoolsPage'));
 const SecurityPage = lazy(() => import('./pages/SecurityPage'));
 const LedgerPage = lazy(() => import('./pages/LedgerPage'));
+const AttendancePage = lazy(() => import('./pages/AttendancePage'));
+const TimesheetPage = lazy(() => import('./pages/TimesheetPage'));
 
 interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
@@ -31,6 +33,8 @@ const NAV: NavItem[] = [
   { path: '/app/schools',   icon: 'school',  label: 'مدارس',          needs: ['MANAGE_SCHOOLS'] },
   { path: '/app/security',  icon: 'key',     label: 'امنیت',          needs: ['MANAGE_SETTINGS'] },
   { path: '/app/ledger',    icon: 'sheet',   label: 'دفتر گزارش‌ها',  needs: ['VIEW_ALL_REPORTS'] },
+  { path: '/app/attendance',icon: 'clock',   label: 'ورود و خروج',    needs: ['RECORD_ATTENDANCE'] },
+  { path: '/app/timesheet', icon: 'hours',   label: 'ساعات کاری',     needs: ['VIEW_ATTENDANCE'] },
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
@@ -57,6 +61,10 @@ const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
   // Manager: analytics first, then the schools they compare and the review queue.
   { needs: 'VIEW_DASHBOARD', order: ['/app/dashboard', '/app/review', '/app/schools', '/app/history'] },
   // Supervisor: the queue is the job.
+  // Front desk: the day is the attendance list.
+  { needs: 'RECORD_ATTENDANCE', order: ['/app/attendance', '/app/timesheet', '/app/profile'] },
+  // Payroll: hours first, then the performance behind them.
+  { needs: 'VIEW_ATTENDANCE', order: ['/app/timesheet', '/app/ledger', '/app/dashboard', '/app/profile'] },
   { needs: 'REVIEW_REPORTS', order: ['/app/review', '/app/dashboard', '/app/history', '/app/profile'] },
   // Operator: filing and checking their own reports.
   { needs: 'SUBMIT_REPORTS', order: ['/app/report', '/app/history', '/app/profile'] },
@@ -207,6 +215,8 @@ export default function App() {
             : active === '/app/schools' ? <SchoolsPage />
             : active === '/app/security' ? <SecurityPage />
             : active === '/app/ledger' ? <LedgerPage />
+            : active === '/app/attendance' ? <AttendancePage />
+            : active === '/app/timesheet' ? <TimesheetPage />
             : active === '/app/profile' ? <ProfilePage me={user} onLogout={logout} />
             : <AdminPage />}
         </Suspense>

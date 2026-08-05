@@ -1533,3 +1533,90 @@ label.toggle input[type='checkbox'] {
 .sub-head { display: block; }
 .sub-head .back-to-queue { display: inline-flex; margin-bottom: var(--space-2); }
 .sub-head h1 { margin: 0; }
+
+/* ============================================ attendance (ورود و خروج) */
+.attendance-count { text-align: center; padding: var(--space-2) var(--space-4);
+  background: var(--success-tint); border-radius: var(--radius-md); }
+.attendance-count b { display: block; font-size: 1.5rem; color: var(--success); line-height: 1.1; }
+.attendance-count span { font-size: 0.75rem; color: var(--text-muted); }
+
+.staff-list { display: grid; gap: var(--space-2); }
+.staff-list article {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--response-fast) var(--ease-out);
+}
+/* Someone still in the building is marked, so the desk can see it without reading. */
+.staff-list article.present { border-color: var(--success); background: var(--success-tint); }
+.staff-text { flex: 1; min-width: 0; display: grid; gap: 0.1rem; }
+.staff-text b { font-size: 0.9375rem; }
+.staff-text span { font-size: 0.75rem; color: var(--text-muted); }
+.clock-btn { flex: none; min-width: 6rem; padding: 0.55rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.8125rem; }
+
+.shift-edit-list { display: grid; gap: var(--space-3); }
+.shift-edit {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.shift-edit label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
+.shift-edit input { display: block; width: 100%; margin-top: var(--space-1); min-height: var(--tap-target);
+  padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-primary); }
+
+/* ============================================ timesheet */
+.timesheet-range { align-items: flex-end; gap: var(--space-4); }
+.timesheet-range label { display: grid; gap: var(--space-1); font-size: 0.8125rem;
+  font-weight: 600; color: var(--text-secondary); }
+.range-total { margin-inline-start: auto; text-align: center; }
+.range-total span { display: block; font-size: 0.75rem; color: var(--text-muted); }
+.range-total b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+
+.timesheet-list article { display: block; padding: 0; overflow: hidden; }
+.timesheet-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  text-align: start;
+  color: inherit;
+}
+.hours-cell { flex: none; text-align: center; min-width: 5rem; }
+.hours-cell b { display: block; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.hours-cell span { font-size: 0.6875rem; color: var(--text-muted); }
+/* Progress against each person's own target, not a shared bar. */
+.target-bar { flex: 1 1 4rem; height: 0.5rem; min-width: 3rem; background: var(--surface-sunken);
+  border-radius: 999px; overflow: hidden; }
+.target-bar i { display: block; height: 100%; border-radius: 999px;
+  transition: width var(--response) var(--ease-out); }
+.target-bar i.low { background: var(--danger); }
+.target-bar i.mid { background: var(--warning); }
+.target-bar i.full { background: var(--success); }
+.timesheet-row .chev { font-style: normal; opacity: 0.4; flex: none; }
+
+.timesheet-detail { padding: 0 var(--space-4) var(--space-4); border-top: 1px solid var(--border); }
+.detail-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) 0; }
+.detail-stats div { flex: 1 1 5rem; text-align: center; padding: var(--space-2);
+  background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.detail-stats span { display: block; font-size: 0.6875rem; color: var(--text-muted); }
+.detail-stats b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+/* Printing a timesheet is part of the process, so the chrome comes off the page. */
+@media print {
+  .app-shell > aside, .bottom-nav, .mobile-header, .content-edge,
+  .head-actions, .toolbar, .banner, .impersonation-bar { display: none !important; }
+  .content { padding: 0; margin: 0; }
+  .timesheet-detail, .table-card, .staff-list article { break-inside: avoid; }
+  body { background: #fff; }
+}

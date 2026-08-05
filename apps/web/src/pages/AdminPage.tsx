@@ -18,6 +18,8 @@ const ROLE_HELP: Record<Role, string> = {
   AGENT: 'ثبت و ارسال گزارش روزانه',
   SUPERVISOR: 'بررسی و تأیید گزارش‌های تیم خود',
   MANAGER: 'داشبورد تحلیلی و خروجی‌ها',
+  OFFICE_MANAGER: 'ثبت ورود و خروج پرسنل',
+  PAYROLL: 'گزارش ساعات کاری و محاسبه حقوق',
   ADMIN: 'مدیریت کاربران و اختیارات کامل گزارش‌ها',
 };
 const ALL_ROLES = Object.keys(ROLE_HELP) as Role[];

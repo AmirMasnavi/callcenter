@@ -12,7 +12,7 @@
 export type IconName =
   | 'plus' | 'history' | 'check' | 'chart' | 'users' | 'user'
   | 'logout' | 'trash' | 'close' | 'download' | 'sheet' | 'eye'
-  | 'sun' | 'moon' | 'auto' | 'key' | 'refresh' | 'school' | 'menu' | 'search' | 'back' | 'edit';
+  | 'sun' | 'moon' | 'auto' | 'key' | 'refresh' | 'school' | 'menu' | 'search' | 'back' | 'edit' | 'clock' | 'hours';
 
 const PATHS: Record<IconName, string> = {
   plus: 'M12 5v14M5 12h14',
@@ -35,6 +35,8 @@ const PATHS: Record<IconName, string> = {
   school: 'M3 10 12 5l9 5-9 5-9-5zM6 12v5c0 1.1 2.7 2 6 2s6-.9 6-2v-5',
   menu: 'M4 7h16M4 12h16M4 17h16',
   edit: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z',
+  clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+  hours: 'M3 21h18M6 21V9M12 21V4M18 21v-8',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
   back: 'M15 18l-6-6 6-6',
 };

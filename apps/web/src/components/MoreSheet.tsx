@@ -31,6 +31,13 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: 'حضور و غیاب',
+    entries: [
+      { path: '/app/attendance', label: 'ثبت ورود و خروج', icon: 'clock', needs: ['RECORD_ATTENDANCE'] },
+      { path: '/app/timesheet',  label: 'ساعات کاری',      icon: 'hours', needs: ['VIEW_ATTENDANCE'] },
+    ],
+  },
+  {
     title: 'سامانه',
     entries: [
       { path: '/app/security', label: 'امنیت ورود',      icon: 'key', needs: ['MANAGE_SETTINGS'] },

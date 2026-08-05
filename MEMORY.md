@@ -258,6 +258,28 @@ Admin user list gained search over name, username and **role label**, so typing 
 finds every supervisor. CSV export follows the filtered list, not the full one — what you
 download matches what you were looking at.
 
+### 2026-08-05 — Attendance and payroll (V10)
+
+Replaces the paper timesheet. Two new roles: `OFFICE_MANAGER` (مسئول دفتر) records
+arrivals/departures, `PAYROLL` (مسئول حقوق و دستمزد) reads hours + performance. Manager and
+supervisor can be granted `VIEW_ATTENDANCE` on its own without changing their role.
+
+Decisions worth keeping:
+- **Worked minutes are DERIVED, never stored.** A stored duration goes stale the moment
+  either timestamp is corrected, and payroll is exactly where that must not happen.
+- **All arithmetic in whole minutes**, formatted to hours only for display — summing
+  fractional hours drifts.
+- **Days are bounded in Tehran time, not UTC.** 21:00 UTC is already the next day locally;
+  UTC bucketing would file shifts under the wrong date. A test pins this down (my first
+  version of that test asserted the wrong date — the code was right).
+- **Several shifts per day**, with a partial unique index enforcing at most one OPEN shift
+  per person, so a second clock-in without clocking out is rejected rather than silently
+  creating an orphan.
+- Monthly target is per person, `NULL` meaning "use the default" — so changing the default
+  moves everyone who has not been given a specific figure.
+- The report is over **real clock time in the range**, not days × nominal hours. That is the
+  distinction the paper process could not enforce and the whole point of the feature.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

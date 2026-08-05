@@ -22,6 +22,8 @@ public enum Permission {
     VIEW_AUDIT("مشاهده تاریخچه فعالیت‌ها"),
     MANAGE_SCHOOLS("مدیریت فهرست مدارس"),
     ARCHIVE_REPORTS("بایگانی گزارش‌ها"),
+    RECORD_ATTENDANCE("ثبت ورود و خروج پرسنل"),
+    VIEW_ATTENDANCE("گزارش ساعات کاری و حقوق"),
     MANAGE_SETTINGS("تنظیمات امنیتی سامانه"),
     VOID_REPORT("ابطال و بازگردانی گزارش"),
     REOPEN_REPORT("بازگشایی گزارش تأییدشده"),
@@ -38,6 +40,9 @@ public enum Permission {
             case AGENT -> EnumSet.of(SUBMIT_REPORTS);
             case SUPERVISOR -> EnumSet.of(REVIEW_REPORTS, ARCHIVE_REPORTS);
             case MANAGER -> EnumSet.of(VIEW_DASHBOARD, EXPORT_DATA, VIEW_ALL_REPORTS, MANAGE_SCHOOLS, ARCHIVE_REPORTS);
+            case OFFICE_MANAGER -> EnumSet.of(RECORD_ATTENDANCE);
+            // Payroll needs the hours AND the performance beside them, plus exports.
+            case PAYROLL -> EnumSet.of(VIEW_ATTENDANCE, VIEW_ALL_REPORTS, EXPORT_DATA);
             case ADMIN -> EnumSet.allOf(Permission.class);
         };
     }
