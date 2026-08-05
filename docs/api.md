@@ -141,15 +141,24 @@ Voiding never deletes a row — revisions and audit entries reference it.
   {
     "reportDate": "2026-08-05",
     "reportLabel": "Shift Morning",
+    "school": "دبیرستان فردوسی",
     "totalPeople": 50,
     "contactedCount": 45,
     "okCount": 20,
     "maybeCount": 10,
     "noCount": 10,
     "noAnswerCount": 5,
+    "attendeeCount": 18,
     "notes": "Successful outreach round."
   }
   ```
+  > `attendeeCount` (تعداد حاضرین) is how many actually attended the class. It is
+  > **nullable, and null is not zero** — it means the class hasn't happened yet. Never send 0
+  > for "unknown". It must not exceed `totalPeople`, but it *may* exceed `okCount`, since
+  > someone who answered "maybe" can still turn up.
+  >
+  > `school` drives the manager's per-school comparison and the second sheet of the Excel
+  > export. Reports without one are grouped under `بدون مدرسه`.
 
 ### 3. Update Daily Report
 - **URL:** `PUT /api/v1/reports/{id}`

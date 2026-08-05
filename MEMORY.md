@@ -118,9 +118,9 @@ Bottom-nav active indicator moved from above the icon to under the label, where 
   move to Redis/DB before scaling out.
 - **`LoginGuard` lockout returns HTTP 409**, because it throws `IllegalStateException`.
   Semantically should be 429.
-- **`ReportService.snapshot()` hand-builds JSON via string concatenation** and escapes only
-  `"` → `'`. Newlines and backslashes in `notes` will produce malformed JSON in the
-  `report_revisions` old/new value columns. Should use Jackson.
+- **`ReportService.snapshot()` still hand-builds JSON via string concatenation.** It now
+  escapes backslashes, quotes, newlines, CR and tabs (fixed 2026-08-05), so the output is
+  valid — but it should still use Jackson rather than an ad-hoc escaper.
 - ~~`AdminController.apply()` does not validate `supervisorId`~~ — fixed 2026-08-05.
 - ~~No self-lockout guard in admin user editing~~ — fixed 2026-08-05 (`guardLastAdmin`).
 - **The older stylesheets (`styles.css`, `usability.css`, 1.8k lines) hardcode a light
