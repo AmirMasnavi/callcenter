@@ -23,6 +23,7 @@ services:
       DEMO_USERS_ENABLED: ${DEMO_USERS_ENABLED:-true}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo12345!}
       MOCK_DATA_ENABLED: ${MOCK_DATA_ENABLED:-false}
+      MASTER_RECOVERY_CODE: ${MASTER_RECOVERY_CODE:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Must include the origin the browser actually uses. The compose stack serves the
       # SPA on APP_PORT, so that origin has to be allowed or every login returns 403.

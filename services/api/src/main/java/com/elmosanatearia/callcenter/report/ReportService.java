@@ -19,11 +19,27 @@ public class ReportService {
   AppUser user=users.findById(actor.id()).orElseThrow();
   DailyReport r=q.reportId()==null?new DailyReport():owned(q.reportId(),actor.id());
   if(r.getId()==null){r.setAgent(user);r.setReportDate(q.reportDate());}
-  if(r.getStatus()!=ReportStatus.DRAFT&&r.getStatus()!=ReportStatus.SUBMITTED) throw new IllegalStateException("گزارش تأییدشده فقط توسط ناظر قابل اصلاح است");
+  boolean approved=r.getStatus()==ReportStatus.APPROVED||r.getStatus()==ReportStatus.CORRECTED_APPROVED;
+  // Attendance is only known once the class has run, which is often AFTER the supervisor
+  // has approved the call figures. Locking the operator out at that point left the number
+  // permanently unrecordable. An approved report therefore stays open for the attendance
+  // field alone; filling it sends the report back for re-approval (see below).
+  if(approved&&!onlyAttendanceChanged(r,q)) throw new IllegalStateException("گزارش تأییدشده فقط توسط ناظر قابل اصلاح است");
+  if(!approved&&r.getStatus()!=ReportStatus.DRAFT&&r.getStatus()!=ReportStatus.SUBMITTED) throw new IllegalStateException("این گزارش قابل ویرایش نیست");
   if(q.version()!=null && r.getId()!=null && q.version()!=r.getVersion()) throw new IllegalStateException("نسخه گزارش قدیمی است");
   String old=r.getId()==null?null:snapshot(r); boolean submitted=r.getStatus()==ReportStatus.SUBMITTED;
   r.setReportDate(q.reportDate());r.setReportLabel(clean(q.reportLabel()));
   apply(r,q.totalPeople(),q.contactedCount(),q.okCount(),q.maybeCount(),q.noCount(),q.noAnswerCount(),q.attendeeCount(),q.school(),q.notes());
+  if(approved){
+   // Back to the supervisor's queue, with the previous approval cleared so it cannot be
+   // mistaken for a review of the new number.
+   validate(r);
+   r.setStatus(ReportStatus.SUBMITTED);r.setReviewer(null);r.setReviewedAt(null);
+   revisions.save(new ReportRevision(r,user,"ثبت تعداد حاضرین توسط اپراتور پس از تأیید — نیازمند تأیید مجدد",old,snapshot(r)));
+   DailyReport reopened=reports.saveAndFlush(r);
+   audits.save(new AuditEvent(user,"RECORD_ATTENDANCE_REOPEN","DailyReport",String.valueOf(reopened.getId()),null));
+   return View.of(reopened);
+  }
   if(submitted){validate(r);revisions.save(new ReportRevision(r,user,"ویرایش اپراتور پیش از تأیید ناظر",old,snapshot(r)));}
   DailyReport saved=reports.saveAndFlush(r); audits.save(new AuditEvent(user,submitted?"EDIT_SUBMITTED":"SAVE_DRAFT","DailyReport",String.valueOf(saved.getId()),null)); return View.of(saved);
  }
@@ -76,6 +92,22 @@ public class ReportService {
    return;
   }
   throw new SecurityException("دسترسی غیرمجاز");
+ }
+ /**
+  * True when the only difference is the attendance figure. This is what decides whether an
+  * operator may still touch an approved report: they may add the number the class produced,
+  * but not quietly revise the call figures a supervisor has already signed off.
+  */
+ private static boolean onlyAttendanceChanged(DailyReport r,SaveRequest q){
+  return r.getTotalPeople()==q.totalPeople()
+   &&r.getContactedCount()==q.contactedCount()
+   &&r.getOkCount()==q.okCount()
+   &&r.getMaybeCount()==q.maybeCount()
+   &&r.getNoCount()==q.noCount()
+   &&r.getNoAnswerCount()==q.noAnswerCount()
+   &&Objects.equals(Objects.toString(r.getNotes(),""),Objects.toString(q.notes(),""))
+   &&Objects.equals(Objects.toString(r.getSchool(),""),Objects.toString(com.elmosanatearia.callcenter.common.TextNormalizer.clean(q.school()),""))
+   &&!Objects.equals(r.getAttendeeCount(),q.attendeeCount());
  }
  private void assertCan(AppPrincipal principal,Permission permission){
   if(!principal.can(permission)) throw new SecurityException("شما دسترسی لازم برای این عملیات را ندارید");

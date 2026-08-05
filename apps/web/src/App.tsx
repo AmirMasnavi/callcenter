@@ -4,6 +4,7 @@ import { api, apiUrl, can, Me, Permission, primaryRole, roleLabel } from './lib/
 import Login from './pages/Login';
 import Loading from './components/Loading';
 import Icon, { IconName } from './components/Icon';
+import MoreSheet from './components/MoreSheet';
 
 const AgentPage = lazy(() => import('./pages/AgentPage'));
 const SupervisorPage = lazy(() => import('./pages/SupervisorPage'));
@@ -34,12 +35,20 @@ const NAV: NavItem[] = [
 const navFor = (me: Me) =>
   NAV.filter(item => !item.needs || item.needs.some(p => me.permissions?.includes(p)));
 
+/* The bottom bar shows at most four destinations — the ones used every day — and a
+   "More" button for the rest. Seven items truncated every label at 375px and put admin
+   screens beside the one task an operator repeats all day. */
+const PRIMARY_ORDER = ['/app/report', '/app/review', '/app/dashboard', '/app/history', '/app/admin', '/app/profile'];
+const primaryNav = (items: NavItem[]) =>
+  [...items].sort((a, b) => PRIMARY_ORDER.indexOf(a.path) - PRIMARY_ORDER.indexOf(b.path)).slice(0, 4);
+
 export default function App() {
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/api/v1/auth/me'), retry: false });
   const user = me.data as Me | null | undefined;
   const [path, setPath] = useState(location.pathname);
   const [promptDismissed, setPromptDismissed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   function navigate(next: string, replace = false) {
     history[replace ? 'replaceState' : 'pushState']({}, '', next);
@@ -156,7 +165,7 @@ export default function App() {
       <div className="content-edge" aria-hidden="true" />
 
       <nav className="bottom-nav">
-        {nav.map(n => (
+        {primaryNav(nav).map(n => (
           <button key={n.path} className={active === n.path ? 'active' : ''}
                   aria-current={active === n.path ? 'page' : undefined}
                   ref={n.path === active ? (el => el?.scrollIntoView({ block: 'nearest', inline: 'center' })) : undefined}
@@ -164,7 +173,15 @@ export default function App() {
             <Icon name={n.icon} /><span>{n.label}</span>
           </button>
         ))}
+        <button className={moreOpen ? 'active' : ''} onClick={() => setMoreOpen(true)} aria-haspopup="dialog">
+          <Icon name="menu" /><span>بیشتر</span>
+        </button>
       </nav>
+
+      {moreOpen && (
+        <MoreSheet me={user} onClose={() => setMoreOpen(false)} onLogout={logout}
+                   onNavigate={navigate} hidePaths={primaryNav(nav).map(n => n.path)} />
+      )}
     </div>
   );
 }

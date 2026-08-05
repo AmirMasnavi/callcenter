@@ -12,7 +12,7 @@
 export type IconName =
   | 'plus' | 'history' | 'check' | 'chart' | 'users' | 'user'
   | 'logout' | 'trash' | 'close' | 'download' | 'sheet' | 'eye'
-  | 'sun' | 'moon' | 'auto' | 'key' | 'refresh' | 'school';
+  | 'sun' | 'moon' | 'auto' | 'key' | 'refresh' | 'school' | 'menu' | 'search' | 'back';
 
 const PATHS: Record<IconName, string> = {
   plus: 'M12 5v14M5 12h14',
@@ -33,6 +33,9 @@ const PATHS: Record<IconName, string> = {
   key: 'M21 2l-2 2M15.5 8.5 19 5M10.5 13.5 15.5 8.5M7 21a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6',
   school: 'M3 10 12 5l9 5-9 5-9-5zM6 12v5c0 1.1 2.7 2 6 2s6-.9 6-2v-5',
+  menu: 'M4 7h16M4 12h16M4 17h16',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
+  back: 'M15 18l-6-6 6-6',
 };
 
 interface Props {

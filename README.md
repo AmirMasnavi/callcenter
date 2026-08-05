@@ -152,6 +152,37 @@ Then browse to `http://<that-address>:8088` — currently **http://192.168.1.220
 
 ---
 
+## 🆘 Master Recovery Code
+
+`MASTER_RECOVERY_CODE` in `.env` is a break-glass back door. When set, two public endpoints
+become available:
+
+| Endpoint | Effect |
+| :--- | :--- |
+| `POST /api/v1/auth/recovery/reset-password` | Set any account's password, reactivate it, clear its login lock |
+| `POST /api/v1/auth/recovery/sign-in` | Sign in as any account |
+
+```bash
+curl -X POST http://localhost:8088/api/v1/auth/recovery/reset-password \
+  -H 'Content-Type: application/json' \
+  -d '{"masterCode":"<your code>","username":"admin","newPassword":"NewPassword1"}'
+```
+
+> [!CAUTION]
+> **Anyone holding this code has total control of every account.** Treat it like a root
+> password: keep it out of git, out of screenshots, and rotate it if it is ever exposed.
+> Leaving `MASTER_RECOVERY_CODE` empty disables both endpoints entirely.
+
+Safeguards built in: the code is never persisted (only compared against the environment
+value, in constant time so it cannot be guessed a character at a time); attempts are
+throttled by the same brute-force guard as normal logins; every attempt — success or
+failure — is written to the audit log with the target account; and responses are identical
+whether or not a username exists, so it cannot be used to enumerate accounts. Signing in
+makes you a *real* user bound by that user's permissions, so every subsequent action stays
+attributable rather than invisible.
+
+---
+
 ## 🔑 Recovering the Admin Account
 
 `ADMIN_PASSWORD` in `.env` only seeds the admin the **first time** the database is created.

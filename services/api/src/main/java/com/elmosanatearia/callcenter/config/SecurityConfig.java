@@ -48,11 +48,16 @@ public class SecurityConfig {
             .securityContext(c -> c.securityContextRepository(securityContextRepository()))
             .csrf(c -> c.csrfTokenRepository(csrf)
                 .csrfTokenRequestHandler(csrfHandler)
-                .ignoringRequestMatchers("/api/v1/auth/login"))
+                // Recovery is used when nobody can log in, so there is no session to carry a
+                // CSRF token. Without this exemption the POSTs fail CSRF, and because the
+                // caller is anonymous Spring reports that as 401 rather than 403 — which
+                // looks like "wrong code" and is very hard to diagnose.
+                .ignoringRequestMatchers("/api/v1/auth/login", "/api/v1/auth/recovery/**"))
             // Gated on capabilities, not roles. A role is just a bundle of these by default,
             // so an admin can hand out one ability (say, exports) without promoting anyone.
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/api-docs/**", "/api/v1/auth/login", "/api/v1/auth/csrf").permitAll()
+                .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/api-docs/**", "/api/v1/auth/login", "/api/v1/auth/csrf",
+                                 "/api/v1/auth/recovery/**").permitAll()
                 .requestMatchers("/api/v1/auth/**").authenticated()
                 .requestMatchers("/api/v1/admin/users/**").hasAuthority("PERM_MANAGE_USERS")
                 .requestMatchers("/api/v1/admin/audit").hasAuthority("PERM_VIEW_AUDIT")
