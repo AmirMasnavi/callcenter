@@ -10,6 +10,8 @@ A full-stack, responsive web application for recording, auditing, reviewing, and
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
 - [Quick Start with Docker](#quick-start-with-docker)
+- [Testing on a Phone](#-testing-on-a-phone)
+- [Recovering the Admin Account](#-recovering-the-admin-account)
 - [Local Development](#local-development)
 - [Separate Front-end & Back-end Deployment](#separate-front-end--back-end-deployment)
 - [Documentation Index](#documentation-index)
@@ -104,11 +106,16 @@ Access the application at `http://localhost:8088`.
 ### Initial Demo Accounts
 
 > [!IMPORTANT]
-> Change default temporary passwords upon first login. For production deployments, set `DEMO_USERS_ENABLED=false` in `.env`.
+> **The admin password is `Demo12345!`** (set by `ADMIN_PASSWORD` in `.env`). Change it after
+> your first login, and set `DEMO_USERS_ENABLED=false` for any real deployment.
+>
+> `ADMIN_PASSWORD` only seeds the account the first time the database is created — changing
+> it later does not update an existing admin. To reset a forgotten admin password, use the
+> command under [Recovering the admin account](#recovering-the-admin-account).
 
-| Role(s) | Username | Temporary Password | Description |
+| Role(s) | Username | Password | Description |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin` | `ChangeMe123!` | User management, plus full authority over every report |
+| **Admin** | `admin` | `Demo12345!` | User management, plus full authority over every report |
 | **Manager** | `manager` | `Demo12345!` | Overall metrics & team exports |
 | **Supervisor** | `supervisor` | `Demo12345!` | Report review & approval workflows |
 | **Operator** | `operator` | `Demo12345!` | Daily report entry & editing |
@@ -118,6 +125,52 @@ A user can hold **several roles at once**; the navigation shows the union of eve
 roles grant. Assign roles with the checkboxes in the admin user editor.
 
 *Note: The database user `callcenter` is reserved for PostgreSQL internal connections and is not an application login.*
+
+---
+
+## 📱 Testing on a Phone
+
+The app is responsive; to try it on a real device, put the phone on the **same Wi‑Fi** as
+this machine and open the LAN address.
+
+```bash
+# Find this machine's LAN address
+ipconfig getifaddr en0
+```
+
+Then browse to `http://<that-address>:8088` — currently **http://192.168.1.220:8088**.
+
+> [!IMPORTANT]
+> The LAN origin must be listed in `CORS_ALLOWED_ORIGINS` in `.env`, or **every login from
+> the phone fails with 403** while the desktop keeps working. It is already set to
+> `http://192.168.1.220:8088`; if your address changes (a new network, a DHCP lease), update it and
+> restart the API:
+>
+> ```bash
+> docker compose up -d --force-recreate api
+> ```
+
+---
+
+## 🔑 Recovering the Admin Account
+
+`ADMIN_PASSWORD` in `.env` only seeds the admin the **first time** the database is created.
+Changing it afterwards has no effect on an existing account. If the admin password is lost,
+reset the hash directly:
+
+```bash
+HASH=$(htpasswd -bnBC 12 "" 'YourNewPassword' | tr -d ':\n')
+docker compose exec -T db psql -U callcenter -d callcenter \
+  -c "UPDATE app_users SET password_hash='$HASH', must_change_password=false WHERE username='admin';"
+```
+
+Too many failed logins locks an account for a while. An admin can relax or switch that off
+entirely under **امنیت** in the app, or clear a specific lock. If nobody can get in at all,
+restarting the API also clears the locks, since they are held in memory:
+
+```bash
+docker compose restart api
+```
 
 ---
 

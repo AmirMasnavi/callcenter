@@ -20,6 +20,8 @@ public enum Permission {
     MANAGE_USERS("افزودن و ویرایش کاربران"),
     MANAGE_ROLES("تغییر نقش‌ها و دسترسی‌ها"),
     VIEW_AUDIT("مشاهده تاریخچه فعالیت‌ها"),
+    MANAGE_SCHOOLS("مدیریت فهرست مدارس"),
+    MANAGE_SETTINGS("تنظیمات امنیتی سامانه"),
     VOID_REPORT("ابطال و بازگردانی گزارش"),
     REOPEN_REPORT("بازگشایی گزارش تأییدشده"),
     IMPERSONATE("مشاهده سامانه به‌جای کاربر دیگر");
@@ -34,7 +36,7 @@ public enum Permission {
         return switch (role) {
             case AGENT -> EnumSet.of(SUBMIT_REPORTS);
             case SUPERVISOR -> EnumSet.of(REVIEW_REPORTS);
-            case MANAGER -> EnumSet.of(VIEW_DASHBOARD, EXPORT_DATA, VIEW_ALL_REPORTS);
+            case MANAGER -> EnumSet.of(VIEW_DASHBOARD, EXPORT_DATA, VIEW_ALL_REPORTS, MANAGE_SCHOOLS);
             case ADMIN -> EnumSet.allOf(Permission.class);
         };
     }

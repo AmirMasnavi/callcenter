@@ -113,6 +113,13 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   0 — it changes the meaning and corrupts the manager's show-up rate.
 - `school` drives the manager's per-school comparison, so it's a real column, not the freeform
   `reportLabel`. Reports without one group under `بدون مدرسه` so totals still reconcile.
+- **School names are managed data** (`schools` table). Persian input varies invisibly —
+  Arabic yeh/kaf, ZWNJ, doubled spaces — so `TextNormalizer` folds a canonical form that
+  carries the uniqueness, while the typed spelling is what gets displayed. Any new
+  user-typed value used as a key needs the same treatment.
+- **The login throttle is runtime-configurable** (`app_settings`), and an admin can disable
+  it or clear a lock. It locked the admin out of their own system once; a security control
+  with no recovery path is a liability. Restarting the API also clears locks (in-memory).
 - Password minimum is 8 (`AuthController.MIN_PASSWORD_LENGTH`, mirrored in `lib/api.ts`).
   Changing a *temporary* password does not require the current one — the user just proved it
   at login. Voluntary changes still do.

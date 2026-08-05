@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, Permission, permissionLabel, Role, roleLabel } from '../lib/api';
 import Loading from '../components/Loading';
 import Sheet from '../components/Sheet';
+import Icon from '../components/Icon';
+import { toCsv, download } from '../lib/exportTable';
 
 type User = {
   id: number; username: string; displayName: string; roles: Role[];
@@ -30,7 +32,7 @@ const emptyForm = {
 const ROLE_DEFAULTS: Record<Role, Permission[]> = {
   AGENT: ['SUBMIT_REPORTS'],
   SUPERVISOR: ['REVIEW_REPORTS'],
-  MANAGER: ['VIEW_DASHBOARD', 'EXPORT_DATA', 'VIEW_ALL_REPORTS'],
+  MANAGER: ['VIEW_DASHBOARD', 'EXPORT_DATA', 'VIEW_ALL_REPORTS', 'MANAGE_SCHOOLS'],
   ADMIN: Object.keys(permissionLabel) as Permission[],
 };
 const defaultsFor = (roles: Role[]) =>
@@ -130,6 +132,24 @@ export default function AdminPage() {
   }
 
   const supervisors = q.data?.filter(u => u.roles.includes('SUPERVISOR')) ?? [];
+
+  // Exports the list as shown, so what you download matches what you were looking at.
+  function exportCurrent() {
+    if (auditMode) {
+      download('audit-log.csv', toCsv((audit.data ?? []).map((a: any) => ({
+        'کاربر': a.actor, 'عملیات': a.action,
+        'موجودیت': `${a.entityType} #${a.entityId ?? ''}`,
+        'زمان': new Date(a.createdAt).toLocaleString('fa-IR'),
+      }))));
+    } else {
+      download('users.csv', toCsv((q.data ?? []).map(u => ({
+        'نام': u.displayName, 'نام کاربری': u.username,
+        'نقش‌ها': u.roles.map(r => roleLabel[r]).join(' / '),
+        'ناظر': u.supervisorName ?? '', 'وضعیت': u.active ? 'فعال' : 'غیرفعال',
+        'دسترسی‌ها': (u.effectivePermissions ?? []).map(p => permissionLabel[p]).join(' / '),
+      }))));
+    }
+  }
   const meId = qc.getQueryData<Me>(['me'])?.id;
 
   return (
@@ -143,6 +163,10 @@ export default function AdminPage() {
         <div className="head-actions">
           <button className="secondary" onClick={() => setAuditMode(!auditMode)}>
             {auditMode ? 'کاربران' : 'تاریخچه فعالیت'}
+          </button>
+          <button className="secondary" onClick={exportCurrent}
+                  disabled={auditMode ? !audit.data?.length : !q.data?.length}>
+            <Icon name="download" size={16} /><span>CSV</span>
           </button>
           {!auditMode && <button className="primary" onClick={newUser}>+ کاربر جدید</button>}
         </div>

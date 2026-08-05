@@ -111,6 +111,35 @@ catches what a screenshot doesn't.
 Bottom-nav active indicator moved from above the icon to under the label, where it reads as
 "you are here" rather than a stray divider.
 
+### 2026-08-05 — Managed schools, configurable login guard, admin recovery
+
+**Admin lockout.** The login throttle locked the admin out with no way back in, and
+`ADMIN_PASSWORD` in `.env` only seeds the account on first database creation — changing it
+afterwards does nothing. Reset the hash directly (documented in the README under
+"Recovering the Admin Account"); the password is now `Demo12345!`.
+
+The throttle itself is now runtime-configurable via `app_settings`: an admin can change the
+thresholds, clear a specific lock, or switch it off, from **امنیت** in the app. It also
+returns 429 instead of a generic 409. **A security control with no recovery path is a
+liability** — that is the lesson worth keeping.
+
+**Managed school names (V8).** School was free text, so "دبیرستان فردوسی" and the same name
+with an Arabic yeh or a doubled space became separate rows in the per-school comparison.
+`schools` now holds the list, with `TextNormalizer` producing a canonical form that carries
+the uniqueness while the typed spelling is displayed. The migration adopts existing values
+and folds duplicates. Verified: adding "دبيرستان  فردوسي" is rejected against the existing
+"دبیرستان فردوسی". Deactivate rather than delete — reports reference the name.
+
+New permissions `MANAGE_SCHOOLS` (manager + admin) and `MANAGE_SETTINGS` (admin).
+
+**CSV export** added to the tables that were missing it (users, audit, per-school,
+per-agent, schools) via `lib/exportTable.ts`. Note `ManagerPage` already had a local
+`download()` for the server endpoints — the import is aliased to `saveFile` to avoid the
+shadowing that silently broke the build.
+
+**LAN testing.** `CORS_ALLOWED_ORIGINS` must include the phone's origin
+(`http://<lan-ip>:8088`) or every login from the phone 403s while desktop keeps working.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

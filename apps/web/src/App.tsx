@@ -10,6 +10,8 @@ const SupervisorPage = lazy(() => import('./pages/SupervisorPage'));
 const ManagerPage = lazy(() => import('./pages/ManagerPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
+const SchoolsPage = lazy(() => import('./pages/SchoolsPage'));
+const SecurityPage = lazy(() => import('./pages/SecurityPage'));
 
 interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
@@ -24,6 +26,8 @@ const NAV: NavItem[] = [
   { path: '/app/review',    icon: 'check',   label: 'بررسی گزارش‌ها', needs: ['REVIEW_REPORTS'] },
   { path: '/app/dashboard', icon: 'chart',   label: 'داشبورد',       needs: ['VIEW_DASHBOARD'] },
   { path: '/app/admin',     icon: 'users',   label: 'کاربران',        needs: ['MANAGE_USERS'] },
+  { path: '/app/schools',   icon: 'school',  label: 'مدارس',          needs: ['MANAGE_SCHOOLS'] },
+  { path: '/app/security',  icon: 'key',     label: 'امنیت',          needs: ['MANAGE_SETTINGS'] },
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
@@ -142,6 +146,8 @@ export default function App() {
             : active === '/app/history' ? <AgentPage view="history" />
             : active === '/app/review' ? <SupervisorPage canVoid={can(user, 'VOID_REPORT')} canReopen={can(user, 'REOPEN_REPORT')} />
             : active === '/app/dashboard' ? <ManagerPage />
+            : active === '/app/schools' ? <SchoolsPage />
+            : active === '/app/security' ? <SecurityPage />
             : active === '/app/profile' ? <ProfilePage me={user} onLogout={logout} />
             : <AdminPage />}
         </Suspense>
@@ -153,6 +159,7 @@ export default function App() {
         {nav.map(n => (
           <button key={n.path} className={active === n.path ? 'active' : ''}
                   aria-current={active === n.path ? 'page' : undefined}
+                  ref={n.path === active ? (el => el?.scrollIntoView({ block: 'nearest', inline: 'center' })) : undefined}
                   onClick={() => navigate(n.path)}>
             <Icon name={n.icon} /><span>{n.label}</span>
           </button>

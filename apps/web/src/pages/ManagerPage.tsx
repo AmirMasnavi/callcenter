@@ -1,6 +1,7 @@
 import{useEffect,useMemo,useState}from'react';import{useQuery}from'@tanstack/react-query';import ReactECharts from'echarts-for-react';import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';import JalaliDate,{todayIso}from'../components/JalaliDate';
 const daysAgoIso=(n:number)=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};import Loading from'../components/Loading';
 import{chartBase,useChartTheme}from'../lib/chartTheme';
+import{toCsv,download as saveFile}from'../lib/exportTable';
 type Totals={reports:number,totalPeople:number,contacted:number,notContacted:number,ok:number,maybe:number,no:number,noAnswer:number,attendees:number,contactRate:number,okRate:number,showUpRate:number};type Agent={agentId:number;agentName:string;reports:number;totalPeople:number;contacted:number;ok:number;maybe:number;no:number;noAnswer:number;attendees:number;showUpRate:number};type SchoolRow={school:string;reports:number;totalPeople:number;contacted:number;ok:number;attendees:number;showUpRate:number};
 type Data={totals:Totals;previous:Totals;schools:SchoolRow[];trend:{date:string;totalPeople:number;contacted:number;ok:number;maybe:number;no:number;noAnswer:number;attendees:number}[];agents:Agent[];reports:Report[]};
 export default function ManagerPage(){
@@ -31,7 +32,10 @@ export default function ManagerPage(){
  {q.isLoading?<Loading/>:<><div className="kpis">{cards.map(([l,v,c,p])=><article className={String(c)} key={String(l)}><span>{l}</span><b>{typeof v==='number'?fa(v):v}</b><small>دوره قبل: {fa(Number(p||0))}</small></article>)}</div>
  <div className="charts"><section><div className="section-title"><b>روند روزانه</b><span>ستونی و خطی</span></div><ReactECharts option={line} style={{height:330}}/></section><section><div className="section-title"><b>توزیع نتایج</b><span>{fa(t?.contacted||0)} تماس</span></div><ReactECharts option={pie} style={{height:330}}/></section></div>
  <section className="table-card comparison"><div className="section-title"><b>مقایسه اپراتورها</b><span>برای حذف یا نمایش هر نفر روی نام او بزنید</span></div><div className="operator-chips">{d?.agents.map(a=><button className={visible.includes(a.agentId)?'active':''} onClick={()=>setVisible(v=>v.includes(a.agentId)?v.filter(x=>x!==a.agentId):[...v,a.agentId])} key={a.agentId}>✓ {a.agentName}</button>)}</div><ReactECharts option={compare} style={{height:330}}/></section>
- <section className="table-card"><div className="section-title"><b>عملکرد اپراتورها</b><span>{fa(d?.agents.length||0)} اپراتور</span></div><div className="table-scroll"><table><thead><tr><th>اپراتور</th><th>گزارش</th><th>کل</th><th>تماس</th><th>نرخ تماس</th><th>OK</th><th>شاید</th><th>NO</th><th>جواب نداد</th><th>حاضرین</th><th>نرخ حضور</th></tr></thead><tbody>{d?.agents.map(a=><tr key={a.agentId}><td><b>{a.agentName}</b></td><td>{fa(a.reports)}</td><td>{fa(a.totalPeople)}</td><td>{fa(a.contacted)}</td><td>{fa(a.totalPeople?a.contacted*100/a.totalPeople:0)}٪</td><td className="green">{fa(a.ok)}</td><td>{fa(a.maybe)}</td><td>{fa(a.no)}</td><td>{fa(a.noAnswer)}</td><td className="green"><b>{fa(a.attendees)}</b></td><td>{a.ok?fa(a.showUpRate)+'٪':'—'}</td></tr>)}</tbody></table></div></section>
+ <section className="table-card"><div className="section-title"><b>عملکرد اپراتورها</b>
+ <span>{fa(d?.agents.length||0)} اپراتور
+  <button className="ghost inline-export" disabled={!d?.agents.length} onClick={()=>saveFile('agents-performance.csv',toCsv((d?.agents||[]).map(a=>({'اپراتور':a.agentName,'گزارش':a.reports,'کل افراد':a.totalPeople,'تماس‌گرفته':a.contacted,'OK':a.ok,'شاید':a.maybe,'NO':a.no,'جواب نداد':a.noAnswer,'حاضرین':a.attendees,'نرخ حضور':Math.round(a.showUpRate*10)/10}))))}>CSV</button>
+ </span></div><div className="table-scroll"><table><thead><tr><th>اپراتور</th><th>گزارش</th><th>کل</th><th>تماس</th><th>نرخ تماس</th><th>OK</th><th>شاید</th><th>NO</th><th>جواب نداد</th><th>حاضرین</th><th>نرخ حضور</th></tr></thead><tbody>{d?.agents.map(a=><tr key={a.agentId}><td><b>{a.agentName}</b></td><td>{fa(a.reports)}</td><td>{fa(a.totalPeople)}</td><td>{fa(a.contacted)}</td><td>{fa(a.totalPeople?a.contacted*100/a.totalPeople:0)}٪</td><td className="green">{fa(a.ok)}</td><td>{fa(a.maybe)}</td><td>{fa(a.no)}</td><td>{fa(a.noAnswer)}</td><td className="green"><b>{fa(a.attendees)}</b></td><td>{a.ok?fa(a.showUpRate)+'٪':'—'}</td></tr>)}</tbody></table></div></section>
 
  {/* Per-school comparison: the same outcomes grouped by who was called rather than who
      called. This is what tells a manager which schools actually convert into attendance. */}
@@ -40,7 +44,10 @@ export default function ManagerPage(){
   ? <ReactECharts option={schoolChart} style={{height:Math.max(220,topSchools.length*46)}} notMerge/>
   : <div className="empty compact">برای مقایسه مدارس، ابتدا نام مدرسه را در گزارش‌ها ثبت کنید.</div>}
  </section>
- <section className="table-card"><div className="section-title"><b>عملکرد به تفکیک مدرسه</b><span>{fa(d?.schools?.length||0)} مدرسه</span></div>
+ <section className="table-card"><div className="section-title"><b>عملکرد به تفکیک مدرسه</b>
+ <span>{fa(d?.schools?.length||0)} مدرسه
+  <button className="ghost inline-export" disabled={!d?.schools?.length} onClick={()=>saveFile('schools-performance.csv',toCsv((d?.schools||[]).map(x=>({'مدرسه':x.school,'گزارش':x.reports,'کل افراد':x.totalPeople,'تماس‌گرفته':x.contacted,'OK':x.ok,'حاضرین':x.attendees,'نرخ حضور':Math.round(x.showUpRate*10)/10}))))}>CSV</button>
+ </span></div>
  <div className="table-scroll"><table><thead><tr><th>مدرسه</th><th>گزارش</th><th>کل افراد</th><th>تماس‌گرفته</th><th>OK</th><th>حاضرین</th><th>نرخ حضور</th></tr></thead>
  <tbody>{d?.schools?.length?d.schools.map(sc=><tr key={sc.school}><td><b>{sc.school}</b></td><td>{fa(sc.reports)}</td><td>{fa(sc.totalPeople)}</td><td>{fa(sc.contacted)}</td><td className="green">{fa(sc.ok)}</td><td><b>{fa(sc.attendees)}</b></td><td>{sc.ok?fa(sc.showUpRate)+'٪':'—'}</td></tr>)
   :<tr><td colSpan={7} className="empty-cell">هنوز مدرسه‌ای در گزارش‌ها ثبت نشده است.</td></tr>}</tbody></table></div></section>

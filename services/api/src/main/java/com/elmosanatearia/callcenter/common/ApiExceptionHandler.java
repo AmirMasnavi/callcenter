@@ -25,6 +25,11 @@ public class ApiExceptionHandler {
  ResponseEntity<Problem> state(IllegalStateException ex){return ResponseEntity.status(409).body(new Problem(Instant.now(),409,ex.getMessage(),Map.of()));}
  @ExceptionHandler(DataIntegrityViolationException.class)
  ResponseEntity<Problem> duplicate(DataIntegrityViolationException ex){return ResponseEntity.status(409).body(new Problem(Instant.now(),409,"اطلاعات تکراری یا ناسازگار است",Map.of()));}
+ @ExceptionHandler(com.elmosanatearia.callcenter.auth.LoginGuard.TooManyAttemptsException.class)
+ ResponseEntity<Problem> throttled(com.elmosanatearia.callcenter.auth.LoginGuard.TooManyAttemptsException ex){
+  // 429, not the 409 a generic IllegalStateException would give — this is rate limiting.
+  return ResponseEntity.status(429).body(new Problem(Instant.now(),429,ex.getMessage(),Map.of()));
+ }
  @ExceptionHandler(SecurityException.class)
  ResponseEntity<Problem> forbidden(SecurityException ex){return ResponseEntity.status(403).body(new Problem(Instant.now(),403,ex.getMessage(),Map.of()));}
  @ExceptionHandler(AuthenticationException.class)

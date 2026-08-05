@@ -1,6 +1,6 @@
 import{useEffect,useMemo,useState}from'react';
 import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';
-import{api,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';
+import{api,fa,faDate,faDateTime,Report,School,statusLabel}from'../lib/api';
 import JalaliDate,{todayIso}from'../components/JalaliDate';
 import Loading from'../components/Loading';
 
@@ -12,6 +12,9 @@ const toForm=(r:Report):Form=>({reportLabel:r.reportLabel||'',school:r.school||'
 
 export default function AgentPage({view}:{view:'form'|'history'}){
  const qc=useQueryClient(),q=useQuery({queryKey:['mine'],queryFn:()=>api<Report[]>('/api/v1/reports/mine')});
+ // Managed list, so everyone spells a school the same way and the manager's per-school
+ // comparison doesn't split one school across several near-identical names.
+ const schools=useQuery({queryKey:['schools'],queryFn:()=>api<School[]>('/api/v1/schools')});
  const[date,setDate]=useState(todayIso()),[activeId,setActiveId]=useState<number>(),[form,setForm]=useState<Form>(empty),[version,setVersion]=useState<number>(),[notice,setNotice]=useState('');
  const dayReports=useMemo(()=>q.data?.filter(r=>r.reportDate===date)||[],[q.data,date]);
  const current=q.data?.find(r=>r.id===activeId);
@@ -40,7 +43,13 @@ export default function AgentPage({view}:{view:'form'|'history'}){
  <div className="day-report-bar"><div><b>گزارش‌های {faDate(date)}</b><span>{fa(dayReports.length)} مورد ثبت شده</span></div><div className="report-tabs">{dayReports.map((r,i)=><button className={activeId===r.id?'active':''} onClick={()=>select(r)} key={r.id}>{r.reportLabel||`گزارش ${fa(dayReports.length-i)}`}</button>)}<button className={!activeId?'active new':''} onClick={newReport}>+ گزارش جدید</button></div></div>
  <section className="form-card"><div className="section-title"><b>{current?current.reportLabel||'ویرایش گزارش':'گزارش جدید'}</b><span>{current?statusLabel[current.status]:'پیش‌نویس تازه'}</span></div>
  <label className="report-label">عنوان اختیاری گزارش<input disabled={locked} maxLength={120} value={form.reportLabel} onChange={e=>update({...form,reportLabel:e.target.value})} placeholder="مثلاً لیست صبح یا پیگیری مرحله دوم"/></label>
- <label className="report-label">مدرسه<input disabled={locked} maxLength={160} value={form.school} onChange={e=>update({...form,school:e.target.value})} placeholder="نام مدرسه‌ای که با آن تماس گرفته‌اید"/></label>
+ <label className="report-label">مدرسه
+  {/* A list rather than free text, but still typeable so a new school isn't a dead end. */}
+  <input disabled={locked} maxLength={160} list="school-options" value={form.school}
+    onChange={e=>update({...form,school:e.target.value})}
+    placeholder={schools.data?.length?'انتخاب از فهرست یا تایپ کنید':'نام مدرسه'}/>
+  <datalist id="school-options">{schools.data?.map(x=><option key={x.id} value={x.name}/>)}</datalist>
+ </label>
  <div className="number-grid">{([['totalPeople','کل افراد','نفر'],['contactedCount','تماس‌گرفته','تماس'],['okCount','نتیجه OK','موفق'],['maybeCount','شاید','پیگیری'],['noCount','نتیجه NO','ناموفق'],['noAnswerCount','جواب نداد','تماس']]as const).map(([k,l,s])=><label className={'metric-input '+k} key={k}><span>{l}</span><input aria-label={l} inputMode="numeric" disabled={locked} value={form[k]} onChange={e=>number(k,e.target.value)}/><small>{s}</small></label>)}</div>
  <div className={'equation '+(valid?'valid':'invalid')}><div><span>جمع نتایج</span><b>{fa(outcomes)}</b></div><span>{valid?'✓ اعداد آماده ثبت هستند':'اعداد نیاز به اصلاح دارند'}</span><div><span>تماس‌نگرفته</span><b>{fa(Math.max(0,notContacted))}</b></div></div>
  {!valid&&<div className="validation-list">{errors.map(e=><div key={e}>• {e}</div>)}</div>}

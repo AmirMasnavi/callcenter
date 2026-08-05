@@ -908,3 +908,60 @@ aside nav button { justify-content: flex-start; padding-inline: var(--space-3); 
 }
 .logout-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
 .logout-action:hover { color: var(--danger); border-color: var(--danger); }
+
+/* The sidebar logout was a bare glyph at low contrast — easy to miss entirely.
+   Given a real target and border so it reads as a control. */
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  flex: none;
+}
+.logout-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+.logout-btn svg { width: 1.15rem; height: 1.15rem; }
+
+.school-form { display: grid; gap: var(--space-3); max-width: 32rem; }
+.inactive-row { opacity: 0.55; }
+.inactive-row b { text-decoration: line-through; }
+.inline-export { margin-inline-start: var(--space-2); padding: 0.15rem 0.5rem; font-size: 0.75rem; }
+
+/* The base sheet only lays out labels inside login/modal/report cards, so a label in a
+   new card renders inline and collides with its own input. */
+.school-form label, .profile-card label, .page form > label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+  color: var(--text-secondary);
+}
+.school-form label input { display: block; width: 100%; margin-top: var(--space-1); }
+
+/* An admin holds every permission, so the bottom nav can carry seven destinations.
+   At 375px that truncates every label, so the bar scrolls instead of squeezing —
+   each item keeps a readable width and the active one is snapped into view. */
+@media (max-width: 640px) {
+  .bottom-nav {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+  .bottom-nav::-webkit-scrollbar { display: none; }
+  .bottom-nav button {
+    flex: 0 0 auto;
+    min-width: 4.5rem;
+    scroll-snap-align: center;
+  }
+  .bottom-nav button span { white-space: nowrap; text-overflow: clip; }
+}

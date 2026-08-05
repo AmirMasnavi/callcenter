@@ -132,13 +132,13 @@ public class ReportService {
  }
  private static void apply(DailyReport r,int total,int contacted,int ok,int maybe,int no,int noAnswer,Integer attendees,String school,String notes){
   r.setTotalPeople(total);r.setContactedCount(contacted);r.setOkCount(ok);r.setMaybeCount(maybe);r.setNoCount(no);r.setNoAnswerCount(noAnswer);
-  r.setAttendeeCount(attendees);r.setSchool(clean(school));r.setNotes(notes==null?null:notes.trim());
+  r.setAttendeeCount(attendees);r.setSchool(com.elmosanatearia.callcenter.common.TextNormalizer.clean(school));r.setNotes(notes==null?null:notes.trim());
  }
  private static boolean changed(DailyReport r,ReviewRequest q){
   return r.getTotalPeople()!=q.totalPeople()||r.getContactedCount()!=q.contactedCount()||r.getOkCount()!=q.okCount()
    ||r.getMaybeCount()!=q.maybeCount()||r.getNoCount()!=q.noCount()||r.getNoAnswerCount()!=q.noAnswerCount()
    ||!Objects.equals(r.getAttendeeCount(),q.attendeeCount())
-   ||!Objects.equals(Objects.toString(r.getSchool(),""),Objects.toString(clean(q.school()),""))
+   ||!Objects.equals(Objects.toString(r.getSchool(),""),Objects.toString(com.elmosanatearia.callcenter.common.TextNormalizer.clean(q.school()),""))
    ||!Objects.equals(Objects.toString(r.getNotes(),""),Objects.toString(q.notes(),""));
  }
  private static String snapshot(DailyReport r){
