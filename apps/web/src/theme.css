@@ -1417,3 +1417,91 @@ label.toggle input[type='checkbox'] {
 .queue-pick { display: flex; align-items: center; flex: none; order: -1; padding-inline-end: var(--space-1); }
 .queue-pick input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); pointer-events: none; }
 .queue button.picked { border-color: var(--accent); background: var(--accent-tint); }
+
+/* ============================================ impersonation bar
+   The bar is fixed chrome, but the sidebar is fixed at top:0 and the content starts at 0,
+   so the bar overlapped both. Everything shifts down by exactly the bar height while it
+   is present — no guessing, and no gap when it is not. */
+:root { --impersonation-height: 2.75rem; }
+
+.impersonation-bar {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 300;              /* above the sidebar and every sheet */
+  height: var(--impersonation-height);
+  padding-inline: var(--space-4);
+}
+.app-shell.impersonating { padding-top: var(--impersonation-height); }
+.app-shell.impersonating > aside { top: var(--impersonation-height); }
+@media (max-width: 900px) {
+  /* The sheet and modal chrome must clear it too. */
+  .app-shell.impersonating ~ .modal .sheet-body,
+  .app-shell.impersonating ~ .more-sheet-backdrop .more-sheet { max-height: calc(88dvh - var(--impersonation-height)); }
+}
+
+/* ============================================ compact toolbar
+   Filters and exports were a sprawling bar that dominated the dashboard. The date range
+   stays visible because it frames every number on the page; everything else is one tap. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.toolbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+  min-height: var(--tap-target);
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* A dot rather than a count: it only needs to say "something is narrowed". */
+.filter-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent-fill);
+  flex: none;
+}
+.filter-sheet { display: grid; gap: var(--space-3); margin-bottom: var(--space-4); }
+.filter-sheet label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); }
+.filter-sheet select, .filter-sheet input {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
+  min-height: var(--tap-target);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+/* Pointer to the ledger, in place of the ledger itself. */
+.ledger-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.ledger-link b { display: block; }
+.ledger-link span { font-size: 0.8125rem; color: var(--text-muted); }
+.ledger-tabs { margin-bottom: var(--space-4); }

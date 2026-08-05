@@ -61,6 +61,8 @@ public class ReportService {
  }
  @Transactional(readOnly=true) public List<View> voided(){return reports.voidedReports().stream().map(View::of).toList();}
  @Transactional(readOnly=true) public List<View> archived(){return reports.archivedReports().stream().map(View::of).toList();}
+ /** Lookup view: includes archived, because archiving must never make a report unfindable. */
+ @Transactional(readOnly=true) public List<View> ledger(){return reports.ledger().stream().map(View::of).toList();}
 
  /**
   * Archiving is list hygiene, not deletion: the rows keep counting in the dashboard and

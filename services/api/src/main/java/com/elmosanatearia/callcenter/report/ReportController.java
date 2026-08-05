@@ -19,6 +19,7 @@ public class ReportController {
 
  // --- admin-only report powers (route prefix already restricted to ADMIN in SecurityConfig) ---
  @GetMapping("/admin/reports") List<View> allReports(@AuthenticationPrincipal AppPrincipal p){return service.team(p);}
+ @GetMapping("/admin/reports/ledger") List<View> ledger(@AuthenticationPrincipal AppPrincipal p){return service.ledger();}
  @GetMapping("/admin/reports/voided") List<View> voided(@AuthenticationPrincipal AppPrincipal p){return service.voided();}
 
  // Archiving sits under /supervisor because a supervisor tidies their own queue; the

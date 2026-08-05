@@ -13,6 +13,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 const SchoolsPage = lazy(() => import('./pages/SchoolsPage'));
 const SecurityPage = lazy(() => import('./pages/SecurityPage'));
+const LedgerPage = lazy(() => import('./pages/LedgerPage'));
 
 interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { path: '/app/admin',     icon: 'users',   label: 'کاربران',        needs: ['MANAGE_USERS'] },
   { path: '/app/schools',   icon: 'school',  label: 'مدارس',          needs: ['MANAGE_SCHOOLS'] },
   { path: '/app/security',  icon: 'key',     label: 'امنیت',          needs: ['MANAGE_SETTINGS'] },
+  { path: '/app/ledger',    icon: 'sheet',   label: 'دفتر گزارش‌ها',  needs: ['VIEW_ALL_REPORTS'] },
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
@@ -141,7 +143,7 @@ export default function App() {
   const showPasswordPrompt = user.mustChangePassword && !promptDismissed && active !== '/app/profile';
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell" + (user.impersonatedBy != null ? " impersonating" : "")}>
       {user.impersonatedBy != null && (
         <div className="impersonation-bar" role="status">
           <span>شما در حال مشاهده سامانه به‌جای «{user.displayName}» هستید.</span>
@@ -204,6 +206,7 @@ export default function App() {
             : active === '/app/dashboard' ? <ManagerPage />
             : active === '/app/schools' ? <SchoolsPage />
             : active === '/app/security' ? <SecurityPage />
+            : active === '/app/ledger' ? <LedgerPage />
             : active === '/app/profile' ? <ProfilePage me={user} onLogout={logout} />
             : <AdminPage />}
         </Suspense>

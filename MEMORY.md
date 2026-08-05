@@ -223,6 +223,30 @@ if they ever need an operator's view, impersonation already exists. The desktop 
 also ranks by persona now; it had been rendering NAV in declaration order, which is why
 "ثبت گزارش" sat at the top for an admin.
 
+### 2026-08-05 — Decluttering, and the ledger/archive relationship
+
+**Impersonation bar overlapped everything** — it is fixed chrome, but the sidebar is also
+fixed at top:0 and content starts at 0. The shell now gets an `.impersonating` class and
+shifts everything down by exactly the bar height.
+
+**Filters and exports left the dashboard toolbar.** Only the date range stays visible (it
+frames every number on the page); supervisor/operator filters and the Excel/CSV buttons
+open in sheets. A dot on the filter chip marks "something is narrowed" without a count.
+
+**The report ledger moved to its own page** (`/app/ledger`) with search and status tabs. A
+manager opening the dashboard wants charts; the ledger is a lookup tool reached
+deliberately, and at the bottom of the main page it got worse with every report filed.
+
+**Three list scopes now exist, and the distinction matters:**
+- working lists (`allReports`, `teamReports`, `pending`) — exclude archived AND voided
+- ledger (`ledger()`) — excludes voided, **includes archived**, because "archived, not
+  deleted" is only true if the reports stay findable
+- statistics (`aggregateSource`) — excludes voided, includes archived
+
+Caught this because the ledger showed 5 of 41 reports: it was reusing the working-list
+endpoint, so archiving would have made reports effectively disappear — exactly what the
+user asked not to happen.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

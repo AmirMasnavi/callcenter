@@ -27,7 +27,7 @@ const GROUPS: Group[] = [
     entries: [
       { path: '/app/dashboard', label: 'داشبورد تحلیلی', icon: 'chart',   needs: ['VIEW_DASHBOARD'] },
       { path: '/app/history',   label: 'گزارش‌های من',   icon: 'history', needs: ['SUBMIT_REPORTS'] },
-      { path: '/app/archive',   label: 'آرشیو گزارش‌ها', icon: 'sheet',   needs: ['VIEW_ALL_REPORTS'] },
+      { path: '/app/ledger',    label: 'دفتر گزارش‌ها',  icon: 'sheet',   needs: ['VIEW_ALL_REPORTS'] },
     ],
   },
   {

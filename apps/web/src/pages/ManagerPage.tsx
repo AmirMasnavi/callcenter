@@ -2,10 +2,16 @@ import{useEffect,useMemo,useState}from'react';import{useQuery}from'@tanstack/rea
 const daysAgoIso=(n:number)=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};import Loading from'../components/Loading';
 import{chartBase,useChartTheme}from'../lib/chartTheme';
 import{toCsv,download as saveFile}from'../lib/exportTable';
+import Icon from'../components/Icon';
+import Sheet from'../components/Sheet';
 type Totals={reports:number,totalPeople:number,contacted:number,notContacted:number,ok:number,maybe:number,no:number,noAnswer:number,attendees:number,contactRate:number,okRate:number,showUpRate:number};type Agent={agentId:number;agentName:string;reports:number;totalPeople:number;contacted:number;ok:number;maybe:number;no:number;noAnswer:number;attendees:number;showUpRate:number};type SchoolRow={school:string;reports:number;totalPeople:number;contacted:number;ok:number;attendees:number;showUpRate:number};
 type Data={totals:Totals;previous:Totals;schools:SchoolRow[];trend:{date:string;totalPeople:number;contacted:number;ok:number;maybe:number;no:number;noAnswer:number;attendees:number}[];agents:Agent[];reports:Report[]};
 export default function ManagerPage(){
  const ct=useChartTheme(),base=chartBase(ct);
+ // Filters and exports are occasional. Keeping both permanently on screen was the single
+ // biggest source of clutter on this page, so each lives behind one control.
+ const[filtersOpen,setFiltersOpen]=useState(false);
+ const[exportOpen,setExportOpen]=useState(false);
  // A dashboard defaulting to a single day opens empty on any morning before the first
  // report lands, which reads as "broken" rather than "no data yet". Last 7 days shows a
  // trend immediately and still loads fast.
@@ -28,7 +34,42 @@ export default function ManagerPage(){
  const pie={...base,tooltip:{...base.tooltip,trigger:'item'},legend:{...base.legend,bottom:0},series:[{type:'pie',radius:['43%','72%'],avoidLabelOverlap:true,label:{position:'inside',formatter:'{b}\n{c}',fontSize:10,color:'#fff'},labelLine:{show:false},data:[{name:'OK',value:t?.ok||0,itemStyle:{color:ct.metric.ok}},{name:'شاید',value:t?.maybe||0,itemStyle:{color:ct.metric.maybe}},{name:'NO',value:t?.no||0,itemStyle:{color:ct.metric.no}},{name:'جواب نداد',value:t?.noAnswer||0,itemStyle:{color:ct.metric.noAnswer}}]}]};
  function download(ext:string){window.open(apiUrl(`/api/v1/exports/reports.${ext}?from=${from}&to=${to}&context=${context}${suffix}`))}
  return <div className="page manager"><header className="page-head"><div><span className="eyebrow">داشبورد مدیریت</span><h1>تصویر کامل کال‌سنتر</h1><p>آمار لحظه‌ای، مقایسه اپراتورها و جزئیات تمام گزارش‌ها.</p></div><div className="live"><i/>به‌روز و لحظه‌ای</div></header>
- <section className="filters"><div className="segmented"><button className={context==='OPERATIONAL'?'active':''} onClick={()=>setContext('OPERATIONAL')}>نمای لحظه‌ای</button><button className={context==='OFFICIAL'?'active':''} onClick={()=>setContext('OFFICIAL')}>آمار قطعی</button></div><label>از <JalaliDate value={from} onChange={setFrom} max={false}/></label><label>تا <JalaliDate value={to} onChange={setTo}/></label><label>ناظر<select value={supervisor} onChange={e=>{setSupervisor(e.target.value);setAgent('')}}><option value="">همه ناظران</option>{filters.data?.supervisors.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>اپراتور<select value={agent} onChange={e=>setAgent(e.target.value)}><option value="">همه اپراتورها</option>{filters.data?.agents.filter(x=>!supervisor||x.supervisorId===Number(supervisor)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><div className="export"><button onClick={()=>download('xlsx')}>Excel</button><button onClick={()=>download('csv')}>CSV</button></div></section>
+ <section className="toolbar">
+  <div className="segmented"><button className={context==='OPERATIONAL'?'active':''} onClick={()=>setContext('OPERATIONAL')}>نمای لحظه‌ای</button><button className={context==='OFFICIAL'?'active':''} onClick={()=>setContext('OFFICIAL')}>آمار قطعی</button></div>
+  <div className="toolbar-actions">
+   {/* The current range is the one filter worth showing at rest — it frames every number
+       on the page. Everything else opens on demand. */}
+   <button className="filter-chip" onClick={()=>setFiltersOpen(true)}>
+    <Icon name="search" size={16}/><span>{faDate(from)} — {faDate(to)}</span>
+    {(supervisor||agent)&&<em className="filter-dot" aria-label="فیلتر فعال"/>}
+   </button>
+   <button className="icon-button" title="خروجی گرفتن" onClick={()=>setExportOpen(true)}>
+    <Icon name="download" label="خروجی گرفتن"/>
+   </button>
+  </div>
+ </section>
+ {filtersOpen&&<Sheet onClose={()=>setFiltersOpen(false)} labelledBy="filters-title">
+  <h2 id="filters-title">فیلترها</h2>
+  <div className="filter-sheet">
+   <label>از تاریخ<JalaliDate value={from} onChange={setFrom} max={false}/></label>
+   <label>تا تاریخ<JalaliDate value={to} onChange={setTo}/></label>
+   <label>ناظر<select value={supervisor} onChange={e=>{setSupervisor(e.target.value);setAgent('')}}><option value="">همه ناظران</option>{filters.data?.supervisors.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+   <label>اپراتور<select value={agent} onChange={e=>setAgent(e.target.value)}><option value="">همه اپراتورها</option>{filters.data?.agents.filter(x=>!supervisor||x.supervisorId===Number(supervisor)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+  </div>
+  <div className="admin-action-row">
+   <button className="primary wide" onClick={()=>setFiltersOpen(false)}>نمایش نتایج</button>
+   {(supervisor||agent)&&<button className="secondary" onClick={()=>{setSupervisor('');setAgent('')}}>پاک کردن</button>}
+  </div>
+ </Sheet>}
+ {exportOpen&&<Sheet onClose={()=>setExportOpen(false)} labelledBy="export-title">
+  <h2 id="export-title">خروجی گرفتن</h2>
+  <p className="hint">خروجی بر اساس همان بازه و فیلترهای فعلی ساخته می‌شود.</p>
+  <div className="more-list">
+   <button onClick={()=>{download('xlsx');setExportOpen(false)}}><Icon name="sheet"/><span>فایل Excel</span><i aria-hidden="true">‹</i></button>
+   <button onClick={()=>{download('csv');setExportOpen(false)}}><Icon name="download"/><span>فایل CSV</span><i aria-hidden="true">‹</i></button>
+  </div>
+ </Sheet>}
+ 
  {q.isLoading?<Loading/>:<><div className="kpis">{cards.map(([l,v,c,p])=><article className={String(c)} key={String(l)}><span>{l}</span><b>{typeof v==='number'?fa(v):v}</b><small>دوره قبل: {fa(Number(p||0))}</small></article>)}</div>
  <div className="charts"><section><div className="section-title"><b>روند روزانه</b><span>ستونی و خطی</span></div><ReactECharts option={line} style={{height:330}}/></section><section><div className="section-title"><b>توزیع نتایج</b><span>{fa(t?.contacted||0)} تماس</span></div><ReactECharts option={pie} style={{height:330}}/></section></div>
  <section className="table-card comparison"><div className="section-title"><b>مقایسه اپراتورها</b><span>برای حذف یا نمایش هر نفر روی نام او بزنید</span></div><div className="operator-chips">{d?.agents.map(a=><button className={visible.includes(a.agentId)?'active':''} onClick={()=>setVisible(v=>v.includes(a.agentId)?v.filter(x=>x!==a.agentId):[...v,a.agentId])} key={a.agentId}>✓ {a.agentName}</button>)}</div><ReactECharts option={compare} style={{height:330}}/></section>
@@ -51,5 +92,10 @@ export default function ManagerPage(){
  <div className="table-scroll"><table><thead><tr><th>مدرسه</th><th>گزارش</th><th>کل افراد</th><th>تماس‌گرفته</th><th>OK</th><th>حاضرین</th><th>نرخ حضور</th></tr></thead>
  <tbody>{d?.schools?.length?d.schools.map(sc=><tr key={sc.school}><td><b>{sc.school}</b></td><td>{fa(sc.reports)}</td><td>{fa(sc.totalPeople)}</td><td>{fa(sc.contacted)}</td><td className="green">{fa(sc.ok)}</td><td><b>{fa(sc.attendees)}</b></td><td>{sc.ok?fa(sc.showUpRate)+'٪':'—'}</td></tr>)
   :<tr><td colSpan={7} className="empty-cell">هنوز مدرسه‌ای در گزارش‌ها ثبت نشده است.</td></tr>}</tbody></table></div></section>
- <section className="table-card report-ledger"><div className="section-title"><b>دفتر گزارش‌ها</b><span>زمان ارسال و تأیید هر گزارش</span></div><div className="table-scroll"><table><thead><tr><th>اپراتور</th><th>عنوان</th><th>تاریخ گزارش</th><th>وضعیت</th><th>ارسال</th><th>تأیید</th><th>تماس / کل</th></tr></thead><tbody>{d?.reports.map(r=><tr key={r.id}><td><b>{r.agentName}</b></td><td>{r.reportLabel||'—'}</td><td>{faDate(r.reportDate)}</td><td><span className={'status '+r.status}>{statusLabel[r.status]}</span></td><td>{faDateTime(r.submittedAt)}</td><td>{faDateTime(r.reviewedAt)}</td><td>{fa(r.contactedCount)} / {fa(r.totalPeople)}</td></tr>)}</tbody></table></div></section></>}</div>
+ <section className="ledger-link">
+  <div><b>دفتر گزارش‌ها</b><span>{fa(d?.reports.length||0)} گزارش در این بازه</span></div>
+  <button className="secondary" onClick={()=>{history.pushState({},'','/app/ledger');dispatchEvent(new PopStateEvent('popstate'))}}>
+   مشاهده فهرست کامل
+  </button>
+ </section></>}</div>
 }
