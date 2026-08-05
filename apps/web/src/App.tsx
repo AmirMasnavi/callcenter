@@ -83,7 +83,7 @@ export default function App() {
   }, [qc]);
 
   const nav = user ? navFor(user) : [];
-  const home = nav[0]?.path ?? '/app/profile';
+  const home = (user ? primaryNav(nav, user)[0]?.path : undefined) ?? '/app/profile';
 
   useEffect(() => {
     if (me.isLoading) return;
@@ -112,7 +112,7 @@ export default function App() {
   function loggedIn(m: Me) {
     qc.setQueryData(['me'], m);
     setPromptDismissed(false);
-    navigate(navFor(m)[0]?.path ?? '/app/profile', true);
+    navigate(primaryNav(navFor(m), m)[0]?.path ?? '/app/profile', true);
   }
 
   if (me.isLoading) return <Loading />;
@@ -182,7 +182,7 @@ export default function App() {
         <Suspense fallback={<Loading />}>
           {active === '/app/report' ? <AgentPage view="form" />
             : active === '/app/history' ? <AgentPage view="history" />
-            : active === '/app/review' ? <SupervisorPage canVoid={can(user, 'VOID_REPORT')} canReopen={can(user, 'REOPEN_REPORT')} />
+            : active === '/app/review' ? <SupervisorPage canVoid={can(user, 'VOID_REPORT')} canReopen={can(user, 'REOPEN_REPORT')} canArchive={can(user, 'ARCHIVE_REPORTS')} />
             : active === '/app/dashboard' ? <ManagerPage />
             : active === '/app/schools' ? <SchoolsPage />
             : active === '/app/security' ? <SecurityPage />

@@ -6,12 +6,22 @@ import Icon from'../components/Icon';
 type Revision={id:number;actor:string;reason:string;createdAt:string};
 // Void and reopen are separate capabilities, so they unlock independently. The list
 // endpoint already widens to every team server-side, so no separate query is needed here.
-export default function SupervisorPage({canVoid=false,canReopen=false}:{canVoid?:boolean,canReopen?:boolean}){
+export default function SupervisorPage({canVoid=false,canReopen=false,canArchive=false}:{canVoid?:boolean,canReopen?:boolean,canArchive?:boolean}){
  const qc=useQueryClient(),q=useQuery({queryKey:['team-reports'],queryFn:()=>api<Report[]>('/api/v1/supervisor/reports')});
  const[adminAction,setAdminAction]=useState<'void'|'reopen'>(),[adminReason,setAdminReason]=useState('');
- const[tab,setTab]=useState<'PENDING'|'DONE'|'ALL'>('PENDING'),[search,setSearch]=useState(''),[selected,setSelected]=useState<Report>(),[edit,setEdit]=useState<Report>(),[reason,setReason]=useState('');
+ const[tab,setTab]=useState<'PENDING'|'DONE'|'ALL'|'ARCHIVED'>('PENDING'),[picked,setPicked]=useState<number[]>([]),[search,setSearch]=useState(''),[selected,setSelected]=useState<Report>(),[edit,setEdit]=useState<Report>(),[reason,setReason]=useState('');
+ const archivedQ=useQuery({queryKey:['archived-reports'],queryFn:()=>api<Report[]>('/api/v1/supervisor/reports/archived'),enabled:tab==='ARCHIVED'});
+ const archiveMutation=useMutation({
+  mutationFn:(archive:boolean)=>api<{changed:number}>(`/api/v1/supervisor/reports/${archive?'archive':'unarchive'}`,{method:'POST',body:JSON.stringify({reportIds:picked})}),
+  onSuccess:()=>{setPicked([]);setSelected(undefined);setEdit(undefined);
+   qc.invalidateQueries({queryKey:['team-reports']});qc.invalidateQueries({queryKey:['archived-reports']})}});
  const revisions=useQuery({queryKey:['revisions',selected?.id],queryFn:()=>api<Revision[]>(`/api/v1/supervisor/reports/${selected!.id}/revisions`),enabled:!!selected});
- const filtered=useMemo(()=>q.data?.filter(r=>(tab==='ALL'||(tab==='PENDING'?r.status==='SUBMITTED':r.status==='APPROVED'||r.status==='CORRECTED_APPROVED'))&&(!search||`${r.agentName} ${r.reportLabel||''}`.includes(search)))||[],[q.data,tab,search]);
+ const filtered=useMemo(()=>{
+  const source=tab==='ARCHIVED'?(archivedQ.data||[]):(q.data||[]);
+  return source.filter(r=>
+   (tab==='ARCHIVED'||tab==='ALL'||(tab==='PENDING'?r.status==='SUBMITTED':r.status==='APPROVED'||r.status==='CORRECTED_APPROVED'))
+   &&(!search||`${r.agentName} ${r.reportLabel||''} ${r.school||''}`.includes(search)));
+ },[q.data,archivedQ.data,tab,search]);
  const counts={pending:q.data?.filter(r=>r.status==='SUBMITTED').length||0,done:q.data?.filter(r=>r.status==='APPROVED'||r.status==='CORRECTED_APPROVED').length||0};
  const review=useMutation({mutationFn:()=>api<Report>(`/api/v1/supervisor/reports/${edit!.id}/approve`,{method:'POST',body:JSON.stringify({...edit,correctionReason:reason})}),onSuccess:r=>{setSelected(r);setEdit({...r});setReason('');qc.invalidateQueries({queryKey:['team-reports']});qc.invalidateQueries({queryKey:['revisions',r.id]})}});
  const adminMutation=useMutation({
@@ -22,14 +32,30 @@ export default function SupervisorPage({canVoid=false,canReopen=false}:{canVoid?
    // A voided report leaves every list, so drop the selection rather than show a ghost.
    if(r.voided){setSelected(undefined);setEdit(undefined)}else{setSelected(r);setEdit({...r})}
    qc.invalidateQueries({queryKey:['team-reports']});qc.invalidateQueries({queryKey:['revisions',r.id]})}});
+ function togglePick(id:number){setPicked(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id])}
  function choose(r:Report){setSelected(r);setEdit({...r});setReason('');setAdminAction(undefined);setAdminReason('')}
  const changed=!!selected&&!!edit&&['totalPeople','contactedCount','okCount','maybeCount','noCount','noAnswerCount','attendeeCount','school','notes'].some(k=>selected[k as keyof Report]!==edit[k as keyof Report]);
  const approved=selected?.status==='APPROVED'||selected?.status==='CORRECTED_APPROVED';
  const sum=(edit?.okCount||0)+(edit?.maybeCount||0)+(edit?.noCount||0)+(edit?.noAnswerCount||0);
  const valid=!!edit&&edit.totalPeople>0&&edit.contactedCount<=edit.totalPeople&&sum===edit.contactedCount&&(edit.attendeeCount==null||edit.attendeeCount<=edit.totalPeople);
  return <div className="page supervisor"><header className="page-head"><div><span className="eyebrow">پنل ناظر</span><h1>کنترل عملکرد تیم</h1><p>گزارش‌های در انتظار، تأییدشده و اصلاحات تیم در یک جا.</p></div><div className="supervisor-stats"><span><b>{fa(counts.pending)}</b> در انتظار</span><span><b>{fa(counts.done)}</b> تأییدشده</span></div></header>
- <section className="supervisor-toolbar"><div className="segmented"><button className={tab==='PENDING'?'active':''} onClick={()=>setTab('PENDING')}>در انتظار ({fa(counts.pending)})</button><button className={tab==='DONE'?'active':''} onClick={()=>setTab('DONE')}>تأییدشده ({fa(counts.done)})</button><button className={tab==='ALL'?'active':''} onClick={()=>setTab('ALL')}>همه</button></div><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="جست‌وجوی اپراتور یا عنوان…"/></section>
- {q.isLoading?<Loading/>:<div className={'review-layout'+(edit?' detail-open':'')}><section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={selected?.id===r.id?'active':''} key={r.id} onClick={()=>choose(r)}><div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span></button>)}</section>
+ <section className="supervisor-toolbar"><div className="segmented"><button className={tab==='PENDING'?'active':''} onClick={()=>{setTab('PENDING');setPicked([])}}>در انتظار ({fa(counts.pending)})</button><button className={tab==='DONE'?'active':''} onClick={()=>{setTab('DONE');setPicked([])}}>تأییدشده ({fa(counts.done)})</button><button className={tab==='ALL'?'active':''} onClick={()=>{setTab('ALL');setPicked([])}}>همه</button>
+ {canArchive&&<button className={tab==='ARCHIVED'?'active':''} onClick={()=>{setTab('ARCHIVED');setPicked([]);setSelected(undefined);setEdit(undefined)}}>بایگانی</button>}</div><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="جست‌وجوی اپراتور یا عنوان…"/></section>
+ {q.isLoading?<Loading/>:<div className={'review-layout'+(edit?' detail-open':'')}>{canArchive&&!!filtered.length&&<div className="bulk-bar">
+  <label className="toggle">
+   <input type="checkbox" checked={picked.length===filtered.length&&picked.length>0}
+     onChange={e=>setPicked(e.target.checked?filtered.map(r=>r.id):[])}/>
+   {picked.length?`${fa(picked.length)} انتخاب‌شده`:'انتخاب همه'}
+  </label>
+  {!!picked.length&&<button className={tab==='ARCHIVED'?'secondary':'danger'} disabled={archiveMutation.isPending}
+    onClick={()=>archiveMutation.mutate(tab!=='ARCHIVED')}>
+    {archiveMutation.isPending?'…':tab==='ARCHIVED'?'بازگردانی':'بایگانی'}
+   </button>}
+ </div>}
+ <section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={(selected?.id===r.id?'active':'')+(picked.includes(r.id)?' picked':'')} key={r.id} onClick={()=>choose(r)}>
+  {canArchive&&<span className="queue-pick" onClick={e=>{e.stopPropagation();togglePick(r.id)}}>
+   <input type="checkbox" checked={picked.includes(r.id)} readOnly tabIndex={-1}/>
+  </span>}<div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span></button>)}</section>
  {edit?<section className="review-card">
  <button className="back-to-queue" onClick={()=>{setSelected(undefined);setEdit(undefined)}}>
   <Icon name="back" size={18}/><span>بازگشت به فهرست</span>

@@ -32,6 +32,9 @@ public class DailyReport {
     @Column(name="voided_at") private Instant voidedAt;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="voided_by") private AppUser voidedBy;
     @Column(name="void_reason",length=1000) private String voidReason;
+    // Archiving only removes a report from the working lists — it stays in every statistic.
+    @Column(name="archived_at") private Instant archivedAt;
+    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="archived_by") private AppUser archivedBy;
     @PreUpdate void updated(){ updatedAt=Instant.now(); }
     public int outcomeTotal(){ return okCount+maybeCount+noCount+noAnswerCount; }
     public int notContacted(){ return totalPeople-contactedCount; }
@@ -59,4 +62,7 @@ public class DailyReport {
     public Instant getVoidedAt(){return voidedAt;} public void setVoidedAt(Instant v){voidedAt=v;}
     public AppUser getVoidedBy(){return voidedBy;} public void setVoidedBy(AppUser v){voidedBy=v;}
     public String getVoidReason(){return voidReason;} public void setVoidReason(String v){voidReason=v;}
+    public boolean isArchived(){ return archivedAt != null; }
+    public Instant getArchivedAt(){return archivedAt;} public void setArchivedAt(Instant v){archivedAt=v;}
+    public AppUser getArchivedBy(){return archivedBy;} public void setArchivedBy(AppUser v){archivedBy=v;}
 }

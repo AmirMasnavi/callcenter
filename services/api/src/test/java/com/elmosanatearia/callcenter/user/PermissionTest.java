@@ -33,7 +33,13 @@ class PermissionTest {
         Set<Permission> effective = Permission.effective(
                 List.of(Role.SUPERVISOR),
                 List.of(new UserPermission(Permission.REVIEW_REPORTS, false)));
-        assertTrue(effective.isEmpty(), "the role's only permission was revoked");
+        // Asserts the revoked capability specifically, not that the set is empty — a role
+        // gaining a second default (ARCHIVE_REPORTS did) must not break this test.
+        assertFalse(effective.contains(Permission.REVIEW_REPORTS), "the revoked permission is gone");
+        assertTrue(effective.containsAll(
+                        Permission.defaultsFor(Role.SUPERVISOR).stream()
+                                .filter(p -> p != Permission.REVIEW_REPORTS).toList()),
+                "the role's other defaults are untouched");
     }
 
     @Test void revokeBeatsGrantForTheSamePermission() {

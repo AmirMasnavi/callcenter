@@ -49,7 +49,7 @@ public class ReportService {
   validate(r);r.setStatus(ReportStatus.SUBMITTED);r.setSubmittedAt(Instant.now());
   DailyReport saved=reports.saveAndFlush(r);audits.save(new AuditEvent(r.getAgent(),"SUBMIT_REPORT","DailyReport",id.toString(),null));return View.of(saved);
  }
- @Transactional(readOnly=true) public List<View> mine(AppPrincipal actor){return reports.findByAgentIdAndVoidedAtIsNullOrderByReportDateDescCreatedAtDesc(actor.id()).stream().map(View::of).toList();}
+ @Transactional(readOnly=true) public List<View> mine(AppPrincipal actor){return reports.findByAgentIdAndVoidedAtIsNullAndArchivedAtIsNullOrderByReportDateDescCreatedAtDesc(actor.id()).stream().map(View::of).toList();}
  // Whoever may see every team is not scoped to one; everyone else sees their own team.
  @Transactional(readOnly=true) public List<View> pending(AppPrincipal actor){
   var rows=actor.can(Permission.VIEW_ALL_REPORTS)?reports.pendingAll(ReportStatus.SUBMITTED):reports.pending(actor.id(),ReportStatus.SUBMITTED);
@@ -60,6 +60,28 @@ public class ReportService {
   return rows.stream().map(View::of).toList();
  }
  @Transactional(readOnly=true) public List<View> voided(){return reports.voidedReports().stream().map(View::of).toList();}
+ @Transactional(readOnly=true) public List<View> archived(){return reports.archivedReports().stream().map(View::of).toList();}
+
+ /**
+  * Archiving is list hygiene, not deletion: the rows keep counting in the dashboard and
+  * exports. Bulk because a backlog is cleared in batches, not one row at a time.
+  */
+ @Transactional public int archive(List<Long> ids,boolean archive,AppPrincipal principal){
+  assertCan(principal,Permission.ARCHIVE_REPORTS);
+  AppUser actor=users.findById(principal.id()).orElseThrow();
+  int changed=0;
+  for(DailyReport r:reports.findAllById(ids)){
+   // A supervisor may only tidy their own team's reports.
+   assertCanReview(r,principal);
+   if(archive==r.isArchived()) continue;
+   r.setArchivedAt(archive?Instant.now():null);
+   r.setArchivedBy(archive?actor:null);
+   reports.save(r);
+   changed++;
+  }
+  if(changed>0) audits.save(new AuditEvent(actor,archive?"ARCHIVE_REPORTS":"UNARCHIVE_REPORTS","DailyReport",null,changed+" مورد"));
+  return changed;
+ }
  @Transactional(readOnly=true) public List<RevisionView> revisions(Long id,AppPrincipal actor){
   DailyReport r=reports.findById(id).orElseThrow(EntityNotFoundException::new);assertCanReview(r,actor);
   return revisions.findByReportIdOrderByCreatedAtDesc(id).stream().map(RevisionView::of).toList();

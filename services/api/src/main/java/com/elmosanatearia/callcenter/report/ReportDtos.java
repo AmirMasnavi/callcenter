@@ -12,13 +12,16 @@ public final class ReportDtos {
    @PositiveOrZero int noAnswerCount,@PositiveOrZero Integer attendeeCount,@Size(max=160) String school,
    @Size(max=1000) String notes,@Size(max=1000) String correctionReason){}
  public record VoidRequest(@NotNull Long version,@NotBlank @Size(max=1000) String reason){}
+ /** Bulk on purpose: clearing a backlog one report at a time is not realistic. */
+ public record ArchiveRequest(@NotEmpty java.util.List<Long> reportIds){}
  public record ReopenRequest(@NotNull Long version,@NotNull ReportStatus target,@NotBlank @Size(max=1000) String reason){}
  public record View(Long id,Long agentId,String agentName,LocalDate reportDate,String reportLabel,String school,
    int totalPeople,int contactedCount,
    int notContacted,int okCount,int maybeCount,int noCount,int noAnswerCount,
    Integer attendeeCount,double attendanceRate,String notes,ReportStatus status,
    Instant createdAt,Instant updatedAt,Instant submittedAt,Instant reviewedAt,String reviewerName,long version,
-   boolean voided,Instant voidedAt,String voidedByName,String voidReason){
+   boolean voided,Instant voidedAt,String voidedByName,String voidReason,
+   boolean archived,Instant archivedAt){
    public static View of(DailyReport r){
     return new View(r.getId(),r.getAgent().getId(),r.getAgent().getDisplayName(),r.getReportDate(),r.getReportLabel(),r.getSchool(),
       r.getTotalPeople(),
@@ -26,7 +29,8 @@ public final class ReportDtos {
       r.getAttendeeCount(),r.attendanceRate(),
       r.getNotes(),r.getStatus(),r.getCreatedAt(),r.getUpdatedAt(),r.getSubmittedAt(),r.getReviewedAt(),
       r.getReviewer()==null?null:r.getReviewer().getDisplayName(),r.getVersion(),
-      r.isVoided(),r.getVoidedAt(),r.getVoidedBy()==null?null:r.getVoidedBy().getDisplayName(),r.getVoidReason());
+      r.isVoided(),r.getVoidedAt(),r.getVoidedBy()==null?null:r.getVoidedBy().getDisplayName(),r.getVoidReason(),
+      r.isArchived(),r.getArchivedAt());
    }
  }
  public record RevisionView(Long id,String actor,String reason,String oldValues,String newValues,Instant createdAt){

@@ -182,6 +182,30 @@ The mobile brand header is static, not sticky — content was passing under it.
 down, so selecting a report looked like nothing happened. Below 900px the two are now one
 view at a time with a back control. Status chips got consistent sizing.
 
+### 2026-08-05 — Archive, queue ordering, admin landing page
+
+**Archive (V9)** is deliberately distinct from void:
+- *voided* = the report is wrong → excluded from every statistic
+- *archived* = the report is finished with → leaves the working lists ONLY
+
+Archived reports still count in the dashboard and exports. Getting this backwards would
+mean tidying a queue silently changed the manager's numbers. `aggregateSource` therefore
+does NOT filter archived, while every working list does. Bulk by design — a backlog is
+cleared in batches. Permission `ARCHIVE_REPORTS` (supervisor + manager + admin).
+
+**Queue ordering** was `order by submittedAt` (oldest first). Now newest first.
+
+**Admin landed on «ثبت گزارش»** because `home` used the raw NAV order rather than the
+persona ranking the bottom bar uses. Both now share `primaryNav`.
+
+Two bugs caught only by checking, not by the build:
+- One of four archive filters silently didn't apply (the string I was replacing had
+  drifted), so archived reports leaked into the team list while the pending endpoint was
+  correct. Verified by comparing the two endpoints rather than trusting the edit.
+- A permission test asserted SUPERVISOR's *only* default is REVIEW_REPORTS; giving the
+  role ARCHIVE_REPORTS broke it. The assertion was too tight — it now checks the revoked
+  capability specifically and that the role's other defaults survive.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

@@ -1396,3 +1396,22 @@ label.toggle input[type='checkbox'] {
   background: var(--danger-fill);
   border-color: var(--danger-fill);
 }
+
+/* Bulk selection for clearing a backlog — one row at a time is not realistic when the
+   queue runs to dozens. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.bulk-bar .toggle { margin: 0; font-size: 0.875rem; }
+.bulk-bar button { padding: 0.375rem 0.875rem; font-size: 0.8125rem; border-radius: var(--radius-sm); }
+.queue-pick { display: flex; align-items: center; flex: none; padding-inline-end: var(--space-1); }
+.queue-pick input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); pointer-events: none; }
+.queue button.picked { border-color: var(--accent); background: var(--accent-tint); }

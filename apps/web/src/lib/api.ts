@@ -6,14 +6,14 @@ export const MIN_PASSWORD_LENGTH=8;
 
 export type Permission=
  'SUBMIT_REPORTS'|'REVIEW_REPORTS'|'VIEW_ALL_REPORTS'|'VIEW_DASHBOARD'|'EXPORT_DATA'|
- 'MANAGE_USERS'|'MANAGE_ROLES'|'VIEW_AUDIT'|'MANAGE_SCHOOLS'|'MANAGE_SETTINGS'|'VOID_REPORT'|'REOPEN_REPORT'|'IMPERSONATE';
+ 'MANAGE_USERS'|'MANAGE_ROLES'|'VIEW_AUDIT'|'MANAGE_SCHOOLS'|'MANAGE_SETTINGS'|'ARCHIVE_REPORTS'|'VOID_REPORT'|'REOPEN_REPORT'|'IMPERSONATE';
 
 /** A user may hold several roles at once; `impersonatedBy` is set while an admin views as them. */
 export interface Me{id:number;username:string;displayName:string;roles:Role[];permissions:Permission[];mustChangePassword:boolean;impersonatedBy?:number|null}
 
 export interface School{id:number;name:string;active:boolean}
 
-export interface Report{id:number;agentId:number;agentName:string;reportDate:string;reportLabel?:string;school?:string;attendeeCount?:number|null;attendanceRate?:number;totalPeople:number;contactedCount:number;notContacted:number;okCount:number;maybeCount:number;noCount:number;noAnswerCount:number;notes?:string;status:Status;createdAt:string;updatedAt:string;submittedAt?:string;reviewedAt?:string;reviewerName?:string;version:number;voided?:boolean;voidedAt?:string;voidedByName?:string;voidReason?:string}
+export interface Report{id:number;agentId:number;agentName:string;reportDate:string;reportLabel?:string;school?:string;attendeeCount?:number|null;attendanceRate?:number;totalPeople:number;contactedCount:number;notContacted:number;okCount:number;maybeCount:number;noCount:number;noAnswerCount:number;notes?:string;status:Status;createdAt:string;updatedAt:string;submittedAt?:string;reviewedAt?:string;reviewerName?:string;version:number;voided?:boolean;voidedAt?:string;voidedByName?:string;voidReason?:string;archived?:boolean;archivedAt?:string}
 
 const apiBaseUrl=(import.meta.env.VITE_API_BASE_URL||'').replace(/\/+$/,'');
 export const apiUrl=(path:string)=>`${apiBaseUrl}${path}`;
@@ -47,6 +47,7 @@ export const permissionLabel:Record<Permission,string>={
  MANAGE_ROLES:'تغییر نقش‌ها و دسترسی‌ها',
  VIEW_AUDIT:'مشاهده تاریخچه فعالیت‌ها',
  MANAGE_SCHOOLS:'مدیریت فهرست مدارس',
+ ARCHIVE_REPORTS:'بایگانی گزارش‌ها',
  MANAGE_SETTINGS:'تنظیمات امنیتی سامانه',
  VOID_REPORT:'ابطال و بازگردانی گزارش',
  REOPEN_REPORT:'بازگشایی گزارش تأییدشده',
