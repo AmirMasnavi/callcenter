@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [editing, setEditing] = useState<number>();
   const [avatar, setAvatar] = useState<File>();
   const [form, setForm] = useState(emptyForm);
+  const [query, setQuery] = useState('');
 
   const save = useMutation({
     mutationFn: async () => {
@@ -94,6 +95,12 @@ export default function AdminPage() {
   }
 
   const supervisors = q.data?.filter(u => u.roles.includes('SUPERVISOR')) ?? [];
+  // Searches name, username and role label, so "ناظر" finds every supervisor.
+  const shownUsers = (q.data ?? []).filter(u => {
+    const term = query.trim();
+    if (!term) return true;
+    return `${u.displayName} ${u.username} ${u.roles.map(r => roleLabel[r]).join(' ')}`.includes(term);
+  });
 
   // Exports the list as shown, so what you download matches what you were looking at.
   function exportCurrent() {
@@ -104,7 +111,7 @@ export default function AdminPage() {
         'زمان': new Date(a.createdAt).toLocaleString('fa-IR'),
       }))));
     } else {
-      download('users.csv', toCsv((q.data ?? []).map(u => ({
+      download('users.csv', toCsv(shownUsers.map(u => ({
         'نام': u.displayName, 'نام کاربری': u.username,
         'نقش‌ها': u.roles.map(r => roleLabel[r]).join(' / '),
         'ناظر': u.supervisorName ?? '', 'وضعیت': u.active ? 'فعال' : 'غیرفعال',
@@ -139,6 +146,19 @@ export default function AdminPage() {
         </div>
       </header>
 
+      {!auditMode && (
+        <div className="search-field">
+          <Icon name="search" size={18} />
+          <input value={query} onChange={e => setQuery(e.target.value)}
+                 placeholder="جست‌وجوی نام، نام کاربری یا نقش…" aria-label="جست‌وجوی کاربر" />
+          {query && (
+            <button className="icon-button ghost-clear" onClick={() => setQuery('')} title="پاک کردن">
+              <Icon name="close" size={16} label="پاک کردن جست‌وجو" />
+            </button>
+          )}
+        </div>
+      )}
+
       {auditMode ? (
         audit.isLoading ? <Loading /> : (
           <section className="table-card">
@@ -158,7 +178,7 @@ export default function AdminPage() {
         )
       ) : q.isLoading ? <Loading /> : (
         <section className="user-grid">
-          {q.data?.map(u => (
+          {shownUsers.map(u => (
             <article key={u.id}>
               <button className="user-card-main" onClick={() => edit(u)}
                       aria-label={`ویرایش حساب ${u.displayName}`}>

@@ -86,6 +86,9 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   typography, a11y preferences). The older sheets hardcode a light palette, so any new
   surface added there needs a matching `[data-theme='dark']` rule or it breaks dark mode.
 - Persian digits everywhere user-facing — use `fa()`, never a raw number in Persian copy.
+- Settings-style screens use **grouped rows you step into** (`.more-list` + a sub-view with
+  a back control), not every control stacked on one page. The row shows its current value
+  so you can read the setting without opening it.
 - **Form controls must be at least 16px on mobile.** Below that, iOS Safari force-zooms the
   page on focus and never zooms back — this is what made the app feel permanently zoomed.
 - **RTL: `inset-inline-start` is the RIGHT edge.** Absolutely-positioned actions collide with

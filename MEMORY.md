@@ -247,6 +247,17 @@ Caught this because the ledger showed 5 of 41 reports: it was reusing the workin
 endpoint, so archiving would have made reports effectively disappear — exactly what the
 user asked not to happen.
 
+### 2026-08-05 — Account settings sectioned, user search
+
+Profile became a grouped list you step into (identity card, then rows for appearance and
+password, then sign-out on its own). Each row shows its current value — "روشن", or "موقت"
+when the password is still temporary — so the setting is readable without opening it.
+Three stacked cards had made a rarely-used screen look busy.
+
+Admin user list gained search over name, username and **role label**, so typing "ناظر"
+finds every supervisor. CSV export follows the filtered list, not the full one — what you
+download matches what you were looking at.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

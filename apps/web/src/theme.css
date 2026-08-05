@@ -1505,3 +1505,31 @@ label.toggle input[type='checkbox'] {
 .ledger-link b { display: block; }
 .ledger-link span { font-size: 0.8125rem; color: var(--text-muted); }
 .ledger-tabs { margin-bottom: var(--space-4); }
+
+/* Settings rows: value on the right, chevron at the edge — the iOS pattern, so the row
+   states its current setting without opening it. */
+.settings-list { margin-bottom: var(--space-4); }
+.settings-list button span { flex: 1; }
+.row-value { font-style: normal; font-size: 0.8125rem; color: var(--text-muted); }
+.row-value.warn { color: var(--warning); font-weight: 600; }
+
+.identity-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.identity-text { flex: 1; min-width: 8rem; display: grid; gap: var(--space-1); }
+.identity-text b { font-size: 1.0625rem; }
+.identity-text span { font-size: 0.8125rem; color: var(--text-muted); }
+.identity-card .avatar-actions { flex: none; }
+
+/* Sub-view header: the back control sits above the title, not beside it. */
+.sub-head { display: block; }
+.sub-head .back-to-queue { display: inline-flex; margin-bottom: var(--space-2); }
+.sub-head h1 { margin: 0; }

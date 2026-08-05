@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, ReactNode, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, roleLabel } from '../lib/api';
 import { readChoice, setTheme, ThemeChoice } from '../lib/theme';
@@ -7,22 +7,156 @@ import Icon from '../components/Icon';
 const THEMES = [
   { value: 'light' as ThemeChoice, label: 'روشن', icon: 'sun' as const },
   { value: 'dark' as ThemeChoice, label: 'تیره', icon: 'moon' as const },
-  { value: 'system' as ThemeChoice, label: 'سیستم', icon: 'auto' as const },
+  { value: 'system' as ThemeChoice, label: 'مطابق سیستم', icon: 'auto' as const },
 ];
 
+type Section = null | 'appearance' | 'password';
+
 /*
- * Replaces the old blocking "change your password" wall.
- *
- * While the account still carries a temporary password the current-password field is
- * hidden entirely: the user proved it seconds ago at login, and asking again is friction
- * with no security value. A voluntary change still asks for it.
+ * Account settings as a grouped list you step into, rather than every control stacked on
+ * one screen. Appearance and password are changed rarely; showing all of it at once made
+ * the page look busy and buried whatever you actually came for.
  */
 export default function Profile({ me, onLogout }: { me: Me; onLogout: () => void }) {
+  const [section, setSection] = useState<Section>(null);
+  const [theme, setThemeChoice] = useState<ThemeChoice>(readChoice);
+  const current = THEMES.find(t => t.value === theme);
+
+  if (section === 'appearance') {
+    return (
+      <SubView title="ظاهر برنامه" onBack={() => setSection(null)}>
+        <p className="hint">حالت پیش‌فرض روشن است. اگر ترجیح می‌دهید، می‌توانید تغییر دهید.</p>
+        <div className="more-list">
+          {THEMES.map(t => (
+            <button key={t.value} onClick={() => { setTheme(t.value); setThemeChoice(t.value); }}>
+              <Icon name={t.icon} />
+              <span>{t.label}</span>
+              {theme === t.value && <Icon name="check" size={18} />}
+            </button>
+          ))}
+        </div>
+      </SubView>
+    );
+  }
+
+  if (section === 'password') {
+    return (
+      <SubView title="تغییر رمز عبور" onBack={() => setSection(null)}>
+        <PasswordForm me={me} />
+      </SubView>
+    );
+  }
+
+  return (
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <span className="eyebrow">حساب کاربری</span>
+          <h1>حساب من</h1>
+        </div>
+      </header>
+
+      <IdentityCard me={me} />
+
+      <div className="more-list settings-list">
+        <button onClick={() => setSection('appearance')}>
+          <Icon name={current?.icon ?? 'sun'} />
+          <span>ظاهر برنامه</span>
+          <em className="row-value">{current?.label}</em>
+          <i aria-hidden="true">‹</i>
+        </button>
+        <button onClick={() => setSection('password')}>
+          <Icon name="key" />
+          <span>تغییر رمز عبور</span>
+          {me.mustChangePassword && <em className="row-value warn">موقت</em>}
+          <i aria-hidden="true">‹</i>
+        </button>
+      </div>
+
+      <div className="more-list settings-list">
+        <button className="danger-row" onClick={onLogout}>
+          <Icon name="logout" />
+          <span>خروج از حساب</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SubView({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
+  return (
+    <div className="page">
+      <header className="page-head sub-head">
+        <button className="back-to-queue" onClick={onBack}>
+          <Icon name="back" size={18} /><span>حساب من</span>
+        </button>
+        <h1>{title}</h1>
+      </header>
+      <section className="profile-card">{children}</section>
+    </div>
+  );
+}
+
+function IdentityCard({ me }: { me: Me }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  // The avatar URL is stable, so without this the browser keeps serving the old image.
+  const [version, setVersion] = useState(0);
+
+  async function upload(file?: File) {
+    if (!file) return;
+    if (file.size > 2_000_000) { setError('حجم عکس باید کمتر از ۲ مگابایت باشد'); return; }
+    setUploading(true); setError('');
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      await api('/api/v1/users/me/avatar', { method: 'POST', body: data });
+      setVersion(v => v + 1);
+    } catch (e) { setError((e as Error).message); } finally { setUploading(false); }
+  }
+
+  async function remove() {
+    setUploading(true); setError('');
+    try {
+      await api('/api/v1/users/me/avatar', { method: 'DELETE' });
+      setVersion(v => v + 1);
+    } catch (e) { setError((e as Error).message); } finally { setUploading(false); }
+  }
+
+  return (
+    <section className="identity-card">
+      <div className="avatar large">
+        {me.displayName.slice(0, 1)}
+        <img src={apiUrl(`/api/v1/users/${me.id}/avatar`) + `?v=${version}`} alt=""
+             onError={e => (e.currentTarget.style.display = 'none')} />
+      </div>
+      <div className="identity-text">
+        <b>{me.displayName}</b>
+        <span>@{me.username}</span>
+        <div className="role-chips">
+          {me.roles.map(r => <span key={r} className={'role-chip ' + r}>{roleLabel[r]}</span>)}
+        </div>
+      </div>
+      <div className="avatar-actions">
+        <label className="as-button">
+          {uploading ? '…' : 'انتخاب عکس'}
+          <input type="file" accept="image/*" hidden disabled={uploading}
+                 onChange={e => upload(e.target.files?.[0])} />
+        </label>
+        <button type="button" className="icon-button danger-ghost" disabled={uploading}
+                onClick={remove} title="حذف عکس">
+          <Icon name="trash" size={16} label="حذف عکس" />
+        </button>
+      </div>
+      {error && <div className="error">{error}</div>}
+    </section>
+  );
+}
+
+function PasswordForm({ me }: { me: Me }) {
   const qc = useQueryClient();
-  // Snapshotted at mount. Reading me.mustChangePassword live would flip the form from
-  // "temporary password" to "voluntary change" the instant a change succeeded, leaving the
-  // success banner sitting above a now-required current-password field — which reads as
-  // "it changed without asking me for anything".
+  // Snapshotted at mount: reading it live would flip the form the instant a change
+  // succeeded, leaving the success banner above a now-required current-password field.
   const [forced] = useState(() => me.mustChangePassword);
   const [currentPassword, setCurrent] = useState('');
   const [newPassword, setNext] = useState('');
@@ -30,45 +164,6 @@ export default function Profile({ me, onLogout }: { me: Me; onLogout: () => void
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [theme, setThemeChoice] = useState<ThemeChoice>(readChoice);
-  const [uploading, setUploading] = useState(false);
-  const [avatarError, setAvatarError] = useState('');
-  // Bumped after a change so the <img> refetches — the avatar URL is otherwise stable
-  // and the browser would keep serving the old picture from cache.
-  const [avatarVersion, setAvatarVersion] = useState(0);
-
-  function chooseTheme(choice: ThemeChoice) {
-    setTheme(choice);
-    setThemeChoice(choice);
-  }
-
-  async function uploadAvatar(file?: File) {
-    if (!file) return;
-    if (file.size > 2_000_000) { setAvatarError('حجم عکس باید کمتر از ۲ مگابایت باشد'); return; }
-    setUploading(true); setAvatarError('');
-    try {
-      const data = new FormData();
-      data.append('file', file);
-      await api('/api/v1/users/me/avatar', { method: 'POST', body: data });
-      setAvatarVersion(v => v + 1);
-    } catch (err) {
-      setAvatarError((err as Error).message);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function removeAvatar() {
-    setUploading(true); setAvatarError('');
-    try {
-      await api('/api/v1/users/me/avatar', { method: 'DELETE' });
-      setAvatarVersion(v => v + 1);
-    } catch (err) {
-      setAvatarError((err as Error).message);
-    } finally {
-      setUploading(false);
-    }
-  }
 
   const tooShort = newPassword.length > 0 && newPassword.length < MIN_PASSWORD_LENGTH;
   const mismatch = confirm.length > 0 && confirm !== newPassword;
@@ -85,120 +180,44 @@ export default function Profile({ me, onLogout }: { me: Me; onLogout: () => void
       setDone(true);
       setCurrent(''); setNext(''); setConfirm('');
       qc.setQueryData(['me'], { ...me, mustChangePassword: false });
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
 
   return (
-    <div className="page">
-      <header className="page-head">
-        <div>
-          <span className="eyebrow">حساب کاربری</span>
-          <h1>حساب من</h1>
-          <p>اطلاعات حساب و تغییر رمز عبور.</p>
-        </div>
-      </header>
+    <form onSubmit={submit}>
+      <p className="hint">
+        {forced
+          ? 'رمز فعلی شما موقت است. کافی است رمز تازه را دو بار وارد کنید.'
+          : 'برای تغییر رمز، ابتدا رمز فعلی خود را وارد کنید.'}
+      </p>
 
-      <section className="profile-grid">
-        <article className="profile-card">
-          <div className="avatar large">
-            {me.displayName.slice(0, 1)}
-            <img src={apiUrl(`/api/v1/users/${me.id}/avatar`) + `?v=${avatarVersion}`} alt=""
-                 onError={e => (e.currentTarget.style.display = 'none')} />
-          </div>
-          <div>
-            <b>{me.displayName}</b>
-            <span>@{me.username}</span>
-          </div>
-          <div className="role-chips">
-            {me.roles.map(r => <span key={r} className={'role-chip ' + r}>{roleLabel[r]}</span>)}
-          </div>
-          {me.roles.length > 1 && (
-            <small>این حساب چند نقش دارد؛ همه بخش‌های مربوط در منو در دسترس است.</small>
-          )}
+      {!forced && (
+        <label>رمز فعلی
+          <input type="password" autoComplete="current-password" required
+                 value={currentPassword} onChange={e => setCurrent(e.target.value)} />
+        </label>
+      )}
 
-          {/* Everyone sets their own picture — it no longer needs an admin. */}
-          <div className="avatar-actions">
-            <label className="secondary as-button">
-              {uploading ? 'در حال بارگذاری…' : 'انتخاب عکس'}
-              <input type="file" accept="image/*" hidden disabled={uploading}
-                     onChange={e => uploadAvatar(e.target.files?.[0])} />
-            </label>
-            <button type="button" className="icon-button danger-ghost" disabled={uploading}
-                    onClick={removeAvatar} title="حذف عکس">
-              <Icon name="trash" label="حذف عکس" />
-            </button>
-          </div>
-          <small className="hint">تصویر باید کمتر از ۲ مگابایت باشد.</small>
-          {avatarError && <div className="error">{avatarError}</div>}
-        </article>
+      <label>رمز جدید
+        <input type="password" autoComplete="new-password" required minLength={MIN_PASSWORD_LENGTH}
+               aria-describedby="pw-rule" value={newPassword} onChange={e => setNext(e.target.value)} />
+      </label>
+      <small id="pw-rule" className={tooShort ? 'field-error' : 'hint'}>
+        حداقل {fa(MIN_PASSWORD_LENGTH)} نویسه.
+      </small>
 
-        <section className="profile-card">
-          <h2>ظاهر برنامه</h2>
-          <p className="hint">حالت پیش‌فرض روشن است. اگر ترجیح می‌دهید، می‌توانید تغییر دهید.</p>
-          <div className="theme-choice" role="group" aria-label="انتخاب ظاهر">
-            {THEMES.map(t => (
-              <button key={t.value} type="button"
-                      className={theme === t.value ? 'active' : ''}
-                      aria-pressed={theme === t.value}
-                      onClick={() => chooseTheme(t.value)}>
-                <Icon name={t.icon} size={18} /><span>{t.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+      <label>تکرار رمز جدید
+        <input type="password" autoComplete="new-password" required minLength={MIN_PASSWORD_LENGTH}
+               value={confirm} onChange={e => setConfirm(e.target.value)} />
+      </label>
+      {mismatch && <small className="field-error">تکرار رمز یکسان نیست.</small>}
 
-        <form className="profile-card" onSubmit={submit}>
-          <h2>تغییر رمز عبور</h2>
-          {forced
-            ? <p className="hint">رمز فعلی شما موقت است. کافی است رمز تازه را دو بار وارد کنید.</p>
-            : <p className="hint">برای تغییر رمز، ابتدا رمز فعلی خود را وارد کنید.</p>}
+      {error && <div className="error">{error}</div>}
+      {done && <div className="success" role="status">رمز عبور با موفقیت تغییر کرد.</div>}
 
-          {!forced && (
-            <label>رمز فعلی
-              <input type="password" autoComplete="current-password" required
-                     value={currentPassword} onChange={e => setCurrent(e.target.value)} />
-            </label>
-          )}
-
-          <label>رمز جدید
-            <input type="password" autoComplete="new-password" required
-                   minLength={MIN_PASSWORD_LENGTH}
-                   aria-describedby="pw-rule"
-                   value={newPassword} onChange={e => setNext(e.target.value)} />
-          </label>
-          {/* Validated inline as they type, not withheld until submit. */}
-          <small id="pw-rule" className={tooShort ? 'field-error' : 'hint'}>
-            حداقل {fa(MIN_PASSWORD_LENGTH)} نویسه.
-          </small>
-
-          <label>تکرار رمز جدید
-            <input type="password" autoComplete="new-password" required
-                   minLength={MIN_PASSWORD_LENGTH}
-                   value={confirm} onChange={e => setConfirm(e.target.value)} />
-          </label>
-          {mismatch && <small className="field-error">تکرار رمز یکسان نیست.</small>}
-
-          {error && <div className="error">{error}</div>}
-          {done && <div className="success" role="status">رمز عبور با موفقیت تغییر کرد.</div>}
-
-          <button className="primary wide" disabled={busy || tooShort || mismatch}>
-            {busy ? 'در حال ثبت…' : 'ثبت رمز جدید'}
-          </button>
-        </form>
-        {/* Sign-out lives with the account, which is also where a phone user can reach it —
-            the sidebar that holds it on desktop is hidden on small screens. */}
-        <section className="profile-card">
-          <h2>خروج از حساب</h2>
-          <p className="hint">برای ورود دوباره به نام کاربری و رمز عبور نیاز دارید.</p>
-          <button type="button" className="secondary wide logout-action" onClick={onLogout}>
-            <Icon name="logout" size={18} /><span>خروج از حساب</span>
-          </button>
-        </section>
-      </section>
-    </div>
+      <button className="primary wide" disabled={busy || tooShort || mismatch}>
+        {busy ? 'در حال ثبت…' : 'ثبت رمز جدید'}
+      </button>
+    </form>
   );
 }
