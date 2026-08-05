@@ -1150,3 +1150,121 @@ aside nav button::after { background: var(--accent); border-radius: 999px; }
   font: inherit;
 }
 .report-label select:focus { background: var(--surface); border-color: var(--accent); outline: none; }
+
+/* ===================================================== the iOS zoom, solved
+   Mobile Safari force-zooms the page whenever a focused form control has a font-size
+   below 16px — and it never zooms back out, which is why the app felt permanently
+   zoomed after the first tap on a field. 16px is the threshold, not a preference. */
+@media (max-width: 980px) {
+  input, select, textarea {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/* ===================================================== mobile brand header
+   The logo only existed in the desktop sidebar and on the login screen, so the app felt
+   unbranded on a phone. A slim translucent header keeps it present without stealing room. */
+.mobile-header {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--gutter, 1rem);
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-blur-thick);
+  backdrop-filter: var(--material-blur-thick);
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 980px) { .mobile-header { display: flex; } }
+.mobile-header img { width: 1.75rem; height: 1.75rem; object-fit: contain; flex: none; }
+.mobile-header .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.mobile-header .brand-text b { font-size: 0.9375rem; letter-spacing: -0.01em; }
+.mobile-header .brand-text span { font-size: 0.6875rem; color: var(--text-muted); }
+.mobile-header .header-spacer { flex: 1; }
+
+/* Roles as compact rows. Four large cards already filled the sheet; this stays readable
+   if the list grows to ten. */
+.role-rows {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.modal .role-row, .role-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-weight: 400;
+  color: inherit;
+  transition: background-color var(--response-fast) var(--ease-out);
+}
+.role-row:last-child { border-bottom: none; }
+.role-row.on { background: var(--accent-tint); }
+.role-row input { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; flex: none; }
+.role-row-text { display: flex; flex-direction: column; line-height: 1.3; }
+.role-row-text b { font-size: 0.9375rem; }
+.role-row-text small { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Schools as rows with icon actions — editing opens a sheet for that row rather than
+   pushing the name back into the "add" form at the top of the page. */
+.school-list { display: grid; gap: var(--space-2); }
+.school-list article {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.school-name { flex: 1; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.school-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-actions { display: flex; gap: var(--space-1); flex: none; }
+.row-actions .icon-button { width: 2.25rem; height: 2.25rem; }
+
+/* Search affordance — a real field with an icon, not another filter bar. */
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.search-field svg { color: var(--text-muted); flex: none; }
+.search-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.7rem 0;
+  min-height: var(--tap-target);
+  outline: none;
+  color: var(--text-primary);
+}
+.search-field .ghost-clear { border: none; width: 2rem; height: 2rem; }
+
+/* User rows: the card body edits, a single icon does "view as". A full-width text button
+   on every row dominated the list and wrapped to three lines on a phone. */
+.user-grid article { position: relative; }
+.user-card-main { grid-template-columns: auto 1fr; }
+.view-as {
+  position: absolute;
+  /* RTL: inset-inline-start is the RIGHT edge, which is where the avatar sits — the two
+     overlapped. The action belongs on the opposite edge from the identity. */
+  inset-inline-end: var(--space-3);
+  inset-block-start: var(--space-3);
+  width: 2.25rem;
+  height: 2.25rem;
+  justify-self: auto;
+}
+.head-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.head-actions .primary { display: inline-flex; align-items: center; gap: var(--space-2); }

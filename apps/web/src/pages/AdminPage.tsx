@@ -24,21 +24,9 @@ const ALL_ROLES = Object.keys(ROLE_HELP) as Role[];
 
 const emptyForm = {
   username: '', displayName: '', roles: ['AGENT'] as Role[],
-  grantedPermissions: [] as Permission[], revokedPermissions: [] as Permission[],
   supervisorId: '', active: true, temporaryPassword: '',
 };
 
-/** What the chosen roles grant on their own — mirrors Permission.defaultsFor on the server. */
-const ROLE_DEFAULTS: Record<Role, Permission[]> = {
-  AGENT: ['SUBMIT_REPORTS'],
-  SUPERVISOR: ['REVIEW_REPORTS'],
-  MANAGER: ['VIEW_DASHBOARD', 'EXPORT_DATA', 'VIEW_ALL_REPORTS', 'MANAGE_SCHOOLS'],
-  ADMIN: Object.keys(permissionLabel) as Permission[],
-};
-const defaultsFor = (roles: Role[]) =>
-  new Set(roles.flatMap(r => ROLE_DEFAULTS[r]));
-
-const ALL_PERMISSIONS = Object.keys(permissionLabel) as Permission[];
 
 export default function AdminPage() {
   const qc = useQueryClient();
@@ -93,7 +81,6 @@ export default function AdminPage() {
     setEditing(u.id); setAvatar(undefined); save.reset();
     setForm({
       username: u.username, displayName: u.displayName, roles: u.roles,
-      grantedPermissions: u.grantedPermissions ?? [], revokedPermissions: u.revokedPermissions ?? [],
       supervisorId: u.supervisorId ? String(u.supervisorId) : '',
       active: u.active, temporaryPassword: '',
     });
@@ -104,31 +91,6 @@ export default function AdminPage() {
       ...f,
       roles: f.roles.includes(role) ? f.roles.filter(r => r !== role) : [...f.roles, role],
     }));
-  }
-
-  /**
-   * One checkbox per capability, but the meaning depends on whether the roles already
-   * grant it: ticking something a role doesn't give is a GRANT, unticking something a
-   * role does give is a REVOKE. Anything matching the role default is stored as neither,
-   * so changing roles later still behaves predictably.
-   */
-  function togglePermission(permission: Permission) {
-    setForm(f => {
-      const fromRoles = defaultsFor(f.roles).has(permission);
-      const currentlyOn = fromRoles
-        ? !f.revokedPermissions.includes(permission)
-        : f.grantedPermissions.includes(permission);
-      const turningOn = !currentlyOn;
-      return {
-        ...f,
-        grantedPermissions: !fromRoles && turningOn
-          ? [...f.grantedPermissions, permission]
-          : f.grantedPermissions.filter(p => p !== permission),
-        revokedPermissions: fromRoles && !turningOn
-          ? [...f.revokedPermissions, permission]
-          : f.revokedPermissions.filter(p => p !== permission),
-      };
-    });
   }
 
   const supervisors = q.data?.filter(u => u.roles.includes('SUPERVISOR')) ?? [];
@@ -161,14 +123,19 @@ export default function AdminPage() {
           <p>حساب‌های سازمانی، نقش‌ها و ارتباط اپراتورها با ناظران.</p>
         </div>
         <div className="head-actions">
-          <button className="secondary" onClick={() => setAuditMode(!auditMode)}>
-            {auditMode ? 'کاربران' : 'تاریخچه فعالیت'}
+          <button className="icon-button" onClick={() => setAuditMode(!auditMode)}
+                  title={auditMode ? 'بازگشت به کاربران' : 'تاریخچه فعالیت'}>
+            <Icon name={auditMode ? 'users' : 'eye'} label={auditMode ? 'بازگشت به کاربران' : 'تاریخچه فعالیت'} />
           </button>
-          <button className="secondary" onClick={exportCurrent}
+          <button className="icon-button" onClick={exportCurrent} title="خروجی CSV"
                   disabled={auditMode ? !audit.data?.length : !q.data?.length}>
-            <Icon name="download" size={16} /><span>CSV</span>
+            <Icon name="download" label="خروجی CSV" />
           </button>
-          {!auditMode && <button className="primary" onClick={newUser}>+ کاربر جدید</button>}
+          {!auditMode && (
+            <button className="primary" onClick={newUser}>
+              <Icon name="plus" size={18} /><span>کاربر جدید</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -210,10 +177,10 @@ export default function AdminPage() {
               </button>
               {/* Viewing as yourself is meaningless, so it isn't offered. */}
               {u.id !== meId && (
-                <button className="ghost view-as" disabled={!u.active || impersonate.isPending}
+                <button className="icon-button view-as" disabled={!u.active || impersonate.isPending}
                         onClick={() => impersonate.mutate(u.id)}
                         title={`مشاهده سامانه به‌جای ${u.displayName}`}>
-                  مشاهده به‌جای این کاربر
+                  <Icon name="eye" size={16} label={`مشاهده به‌جای ${u.displayName}`} />
                 </button>
               )}
             </article>
@@ -224,7 +191,6 @@ export default function AdminPage() {
       {open && (
         <UserSheet
           editing={!!editing} form={form} setForm={setForm} toggleRole={toggleRole}
-          togglePermission={togglePermission}
           supervisors={supervisors} setAvatar={setAvatar}
           error={save.error?.message} busy={save.isPending}
           onClose={() => setOpen(false)}
@@ -235,46 +201,11 @@ export default function AdminPage() {
   );
 }
 
-/**
- * Capabilities, shown as one list with the source made explicit: inherited from a role,
- * added on top, or withheld. Without that labelling an admin cannot tell why a box is
- * ticked, and unticking a role-granted item looks like a bug rather than an exception.
- */
-function PermissionPicker({ form, toggle }: { form: typeof emptyForm; toggle: (p: Permission) => void }) {
-  const fromRoles = defaultsFor(form.roles);
-  return (
-    <fieldset className="role-picker-wrap">
-      <legend>دسترسی‌ها</legend>
-      <p className="hint">
-        نقش‌ها به‌طور پیش‌فرض دسترسی‌های زیر را می‌دهند. می‌توانید مورد به مورد اضافه یا کم کنید.
-      </p>
-      <div className="permission-list">
-        {ALL_PERMISSIONS.map(p => {
-          const inherited = fromRoles.has(p);
-          const revoked = form.revokedPermissions.includes(p);
-          const granted = form.grantedPermissions.includes(p);
-          const on = inherited ? !revoked : granted;
-          return (
-            <label key={p} className={'permission-row' + (on ? ' on' : '') + (revoked ? ' revoked' : '')}>
-              <input type="checkbox" checked={on} onChange={() => toggle(p)} />
-              <span className="permission-name">{permissionLabel[p]}</span>
-              {inherited && !revoked && <span className="perm-tag inherited">از نقش</span>}
-              {granted && <span className="perm-tag added">افزوده</span>}
-              {revoked && <span className="perm-tag removed">حذف‌شده</span>}
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
-
 interface SheetProps {
   editing: boolean;
   form: typeof emptyForm;
   setForm: (f: typeof emptyForm) => void;
   toggleRole: (r: Role) => void;
-  togglePermission: (p: Permission) => void;
   supervisors: User[];
   setAvatar: (f?: File) => void;
   error?: string;
@@ -283,7 +214,7 @@ interface SheetProps {
   onSubmit: (e: FormEvent) => void;
 }
 
-function UserSheet({ editing, form, setForm, toggleRole, togglePermission, supervisors, setAvatar, error, busy, onClose, onSubmit }: SheetProps) {
+function UserSheet({ editing, form, setForm, toggleRole, supervisors, setAvatar, error, busy, onClose, onSubmit }: SheetProps) {
   return (
     <Sheet onClose={onClose} labelledBy="user-sheet-title">
       <form onSubmit={onSubmit}>
@@ -303,19 +234,23 @@ function UserSheet({ editing, form, setForm, toggleRole, togglePermission, super
 
         {/* Roles are not exclusive, so this is a checklist, not a dropdown. */}
         <fieldset className="role-picker-wrap">
-          <legend>نقش‌ها (می‌توانید چند نقش انتخاب کنید)</legend>
-          <div className="role-picker">
-            {ALL_ROLES.map(r => (
-              <label key={r} className={'role-option' + (form.roles.includes(r) ? ' checked' : '')}>
-                <input type="checkbox" checked={form.roles.includes(r)} onChange={() => toggleRole(r)} />
-                <span><b>{roleLabel[r]}</b><span>{ROLE_HELP[r]}</span></span>
-              </label>
-            ))}
+          <legend>نقش‌ها</legend>
+          <div className="role-rows">
+            {ALL_ROLES.map(r => {
+              const on = form.roles.includes(r);
+              return (
+                <label key={r} className={'role-row' + (on ? ' on' : '')}>
+                  <input type="checkbox" checked={on} onChange={() => toggleRole(r)} />
+                  <span className="role-row-text">
+                    <b>{roleLabel[r]}</b>
+                    <small>{ROLE_HELP[r]}</small>
+                  </span>
+                </label>
+              );
+            })}
           </div>
           {!form.roles.length && <small className="field-error">حداقل یک نقش لازم است.</small>}
         </fieldset>
-
-        <PermissionPicker form={form} toggle={togglePermission} />
 
         {/* A supervisor only means something for someone who files reports. */}
         {form.roles.includes('AGENT') && (

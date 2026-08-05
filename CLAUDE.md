@@ -86,6 +86,14 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   typography, a11y preferences). The older sheets hardcode a light palette, so any new
   surface added there needs a matching `[data-theme='dark']` rule or it breaks dark mode.
 - Persian digits everywhere user-facing — use `fa()`, never a raw number in Persian copy.
+- **Form controls must be at least 16px on mobile.** Below that, iOS Safari force-zooms the
+  page on focus and never zooms back — this is what made the app feel permanently zoomed.
+- **RTL: `inset-inline-start` is the RIGHT edge.** Absolutely-positioned actions collide with
+  right-aligned content (avatars) if you assume LTR. Check both sides when positioning.
+- The bottom bar carries **four destinations, chosen per persona** (`PRIORITY_BY_PERSONA` in
+  `App.tsx`) plus «بیشتر». An admin never files reports — do not rank destinations globally.
+- Prefer an **icon + tooltip + aria-label** over a text button in list rows; a full-width text
+  button on every row dominates the list and wraps on a phone.
 
 ## Code Style
 

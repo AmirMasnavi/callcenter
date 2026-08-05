@@ -35,12 +35,31 @@ const NAV: NavItem[] = [
 const navFor = (me: Me) =>
   NAV.filter(item => !item.needs || item.needs.some(p => me.permissions?.includes(p)));
 
-/* The bottom bar shows at most four destinations — the ones used every day — and a
-   "More" button for the rest. Seven items truncated every label at 375px and put admin
-   screens beside the one task an operator repeats all day. */
-const PRIMARY_ORDER = ['/app/report', '/app/review', '/app/dashboard', '/app/history', '/app/admin', '/app/profile'];
-const primaryNav = (items: NavItem[]) =>
-  [...items].sort((a, b) => PRIMARY_ORDER.indexOf(a.path) - PRIMARY_ORDER.indexOf(b.path)).slice(0, 4);
+/* The bottom bar shows at most four destinations — and WHICH four depends on the job.
+   An admin never files a report; they live in users and security, and only reach reports
+   to unblock someone. Ordering by a single global list put "ثبت گزارش" in front of an
+   admin and buried "کاربران". The order is therefore chosen per persona, widest role
+   first, and everything else stays one tap away in "بیشتر". */
+const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
+  // Admin: manage people and access; reports are an escape hatch, not daily work.
+  { needs: 'MANAGE_USERS',   order: ['/app/admin', '/app/security', '/app/schools', '/app/dashboard'] },
+  // Manager: analytics first, then the schools they compare and the review queue.
+  { needs: 'VIEW_DASHBOARD', order: ['/app/dashboard', '/app/review', '/app/schools', '/app/history'] },
+  // Supervisor: the queue is the job.
+  { needs: 'REVIEW_REPORTS', order: ['/app/review', '/app/dashboard', '/app/history', '/app/profile'] },
+  // Operator: filing and checking their own reports.
+  { needs: 'SUBMIT_REPORTS', order: ['/app/report', '/app/history', '/app/profile'] },
+];
+
+function primaryNav(items: NavItem[], me: Me): NavItem[] {
+  const persona = PRIORITY_BY_PERSONA.find(p => me.permissions?.includes(p.needs));
+  const order = persona?.order ?? [];
+  const ranked = [...items].sort((a, b) => {
+    const ia = order.indexOf(a.path), ib = order.indexOf(b.path);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  return ranked.slice(0, 4);
+}
 
 export default function App() {
   const qc = useQueryClient();
@@ -112,6 +131,16 @@ export default function App() {
         </div>
       )}
 
+      {/* The sidebar (and its logo) is hidden below 980px, so the brand lives here on mobile. */}
+      <header className="mobile-header">
+        <img src="/brand-logo.png" alt="" />
+        <div className="brand-text">
+          <b>گزارش‌یار آریا</b>
+          <span>علم و صنعت آریا</span>
+        </div>
+        <div className="header-spacer" />
+      </header>
+
       <aside>
         <div className="brand">
           <img src="/brand-logo.png" alt="" className="brand-logo" />
@@ -165,7 +194,7 @@ export default function App() {
       <div className="content-edge" aria-hidden="true" />
 
       <nav className="bottom-nav">
-        {primaryNav(nav).map(n => (
+        {primaryNav(nav, user).map(n => (
           <button key={n.path} className={active === n.path ? 'active' : ''}
                   aria-current={active === n.path ? 'page' : undefined}
                   ref={n.path === active ? (el => el?.scrollIntoView({ block: 'nearest', inline: 'center' })) : undefined}
@@ -180,7 +209,7 @@ export default function App() {
 
       {moreOpen && (
         <MoreSheet me={user} onClose={() => setMoreOpen(false)} onLogout={logout}
-                   onNavigate={navigate} hidePaths={primaryNav(nav).map(n => n.path)} />
+                   onNavigate={navigate} hidePaths={primaryNav(nav, user).map(n => n.path)} />
       )}
     </div>
   );

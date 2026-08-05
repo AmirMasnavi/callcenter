@@ -140,6 +140,28 @@ shadowing that silently broke the build.
 **LAN testing.** `CORS_ALLOWED_ORIGINS` must include the phone's origin
 (`http://<lan-ip>:8088`) or every login from the phone 403s while desktop keeps working.
 
+### 2026-08-05 — The iOS zoom, and admin-panel IA
+
+**The "strange zoom" was never a layout bug.** Mobile Safari force-zooms whenever a focused
+form control has a font-size under 16px, and it does not zoom back out — so the app appeared
+permanently zoomed after the first tap on any field. One 14px input was enough. Fixed by
+flooring form controls at 16px on mobile.
+
+**Admin navigation was ranked globally**, which put «ثبت گزارش» in front of an admin and
+buried «کاربران». Destinations are now ordered per persona: an admin gets users/security/
+schools/dashboard, an operator gets report/history. An admin holds every permission, so
+"what they can reach" is a terrible proxy for "what they do daily".
+
+Per-user permission overrides were removed from the UI (the backend still supports them) —
+they were unreliable and not needed day to day. Roles moved from four large cards to compact
+rows so the list survives growing past four.
+
+School editing now opens a sheet for that row instead of pushing the name back into the "add"
+form at the top of the page, and row actions are icons.
+
+**RTL gotcha:** `inset-inline-start` is the RIGHT edge, so an absolutely-positioned action
+landed on top of the avatar. Always check which physical side a logical property resolves to.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
