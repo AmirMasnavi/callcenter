@@ -1412,6 +1412,8 @@ label.toggle input[type='checkbox'] {
 }
 .bulk-bar .toggle { margin: 0; font-size: 0.875rem; }
 .bulk-bar button { padding: 0.375rem 0.875rem; font-size: 0.8125rem; border-radius: var(--radius-sm); }
-.queue-pick { display: flex; align-items: center; flex: none; padding-inline-end: var(--space-1); }
+/* Last in the DOM so the base sheet's `div:nth-child(2)` still lands on the text block,
+   but first visually. */
+.queue-pick { display: flex; align-items: center; flex: none; order: -1; padding-inline-end: var(--space-1); }
 .queue-pick input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); pointer-events: none; }
 .queue button.picked { border-color: var(--accent); background: var(--accent-tint); }

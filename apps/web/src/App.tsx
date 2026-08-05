@@ -32,8 +32,17 @@ const NAV: NavItem[] = [
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
-const navFor = (me: Me) =>
-  NAV.filter(item => !item.needs || item.needs.some(p => me.permissions?.includes(p)));
+/* An admin holds every permission, so "can reach" is a poor filter for "should see".
+   Filing reports and browsing their own report history are not admin work — and if they
+   ever need to look, they can view the app as that user. Removing them keeps the admin's
+   navigation to what the role is actually for. */
+const ADMIN_IRRELEVANT = ['/app/report', '/app/history'];
+
+const navFor = (me: Me) => {
+  const allowed = NAV.filter(item => !item.needs || item.needs.some(p => me.permissions?.includes(p)));
+  const isAdmin = me.permissions?.includes('MANAGE_USERS');
+  return isAdmin ? allowed.filter(item => !ADMIN_IRRELEVANT.includes(item.path)) : allowed;
+};
 
 /* The bottom bar shows at most four destinations — and WHICH four depends on the job.
    An admin never files a report; they live in users and security, and only reach reports
@@ -42,7 +51,7 @@ const navFor = (me: Me) =>
    first, and everything else stays one tap away in "بیشتر". */
 const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
   // Admin: manage people and access; reports are an escape hatch, not daily work.
-  { needs: 'MANAGE_USERS',   order: ['/app/admin', '/app/security', '/app/schools', '/app/dashboard'] },
+  { needs: 'MANAGE_USERS',   order: ['/app/admin', '/app/security', '/app/schools', '/app/dashboard', '/app/review', '/app/profile'] },
   // Manager: analytics first, then the schools they compare and the review queue.
   { needs: 'VIEW_DASHBOARD', order: ['/app/dashboard', '/app/review', '/app/schools', '/app/history'] },
   // Supervisor: the queue is the job.
@@ -50,6 +59,15 @@ const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
   // Operator: filing and checking their own reports.
   { needs: 'SUBMIT_REPORTS', order: ['/app/report', '/app/history', '/app/profile'] },
 ];
+
+/** Full list for the sidebar, ranked the same way the bottom bar ranks its four. */
+function sidebarNav(items: NavItem[], me: Me): NavItem[] {
+  const order = PRIORITY_BY_PERSONA.find(p => me.permissions?.includes(p.needs))?.order ?? [];
+  return [...items].sort((a, b) => {
+    const ia = order.indexOf(a.path), ib = order.indexOf(b.path);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+}
 
 function primaryNav(items: NavItem[], me: Me): NavItem[] {
   const persona = PRIORITY_BY_PERSONA.find(p => me.permissions?.includes(p.needs));
@@ -147,7 +165,7 @@ export default function App() {
           <div><b>گزارش‌یار</b><span>علم و صنعت آریا</span></div>
         </div>
         <nav>
-          {nav.map(n => (
+          {sidebarNav(nav, user).map(n => (
             <button key={n.path} className={active === n.path ? 'active' : ''}
                     aria-current={active === n.path ? 'page' : undefined}
                     onClick={() => navigate(n.path)}>

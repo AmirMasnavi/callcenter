@@ -41,7 +41,7 @@ export default function SupervisorPage({canVoid=false,canReopen=false,canArchive
  return <div className="page supervisor"><header className="page-head"><div><span className="eyebrow">پنل ناظر</span><h1>کنترل عملکرد تیم</h1><p>گزارش‌های در انتظار، تأییدشده و اصلاحات تیم در یک جا.</p></div><div className="supervisor-stats"><span><b>{fa(counts.pending)}</b> در انتظار</span><span><b>{fa(counts.done)}</b> تأییدشده</span></div></header>
  <section className="supervisor-toolbar"><div className="segmented"><button className={tab==='PENDING'?'active':''} onClick={()=>{setTab('PENDING');setPicked([])}}>در انتظار ({fa(counts.pending)})</button><button className={tab==='DONE'?'active':''} onClick={()=>{setTab('DONE');setPicked([])}}>تأییدشده ({fa(counts.done)})</button><button className={tab==='ALL'?'active':''} onClick={()=>{setTab('ALL');setPicked([])}}>همه</button>
  {canArchive&&<button className={tab==='ARCHIVED'?'active':''} onClick={()=>{setTab('ARCHIVED');setPicked([]);setSelected(undefined);setEdit(undefined)}}>بایگانی</button>}</div><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="جست‌وجوی اپراتور یا عنوان…"/></section>
- {q.isLoading?<Loading/>:<div className={'review-layout'+(edit?' detail-open':'')}>{canArchive&&!!filtered.length&&<div className="bulk-bar">
+ {q.isLoading?<Loading/>:<>{canArchive&&!!filtered.length&&!edit&&<div className="bulk-bar">
   <label className="toggle">
    <input type="checkbox" checked={picked.length===filtered.length&&picked.length>0}
      onChange={e=>setPicked(e.target.checked?filtered.map(r=>r.id):[])}/>
@@ -52,10 +52,11 @@ export default function SupervisorPage({canVoid=false,canReopen=false,canArchive
     {archiveMutation.isPending?'…':tab==='ARCHIVED'?'بازگردانی':'بایگانی'}
    </button>}
  </div>}
- <section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={(selected?.id===r.id?'active':'')+(picked.includes(r.id)?' picked':'')} key={r.id} onClick={()=>choose(r)}>
+ <div className={'review-layout'+(edit?' detail-open':'')}>
+ <section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={(selected?.id===r.id?'active':'')+(picked.includes(r.id)?' picked':'')} key={r.id} onClick={()=>choose(r)}><div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span>
   {canArchive&&<span className="queue-pick" onClick={e=>{e.stopPropagation();togglePick(r.id)}}>
-   <input type="checkbox" checked={picked.includes(r.id)} readOnly tabIndex={-1}/>
-  </span>}<div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span></button>)}</section>
+   <input type="checkbox" checked={picked.includes(r.id)} readOnly tabIndex={-1} aria-label="انتخاب برای بایگانی"/>
+  </span>}</button>)}</section>
  {edit?<section className="review-card">
  <button className="back-to-queue" onClick={()=>{setSelected(undefined);setEdit(undefined)}}>
   <Icon name="back" size={18}/><span>بازگشت به فهرست</span>
@@ -98,5 +99,5 @@ export default function SupervisorPage({canVoid=false,canReopen=false,canArchive
     </div>}
  </section>}
  <div className="timeline"><h3>تاریخچه گزارش</h3><div><i/><p><b>ثبت توسط {edit.agentName}</b><span>{faDateTime(edit.createdAt)}</span></p></div>{edit.submittedAt&&<div><i/><p><b>ارسال برای بررسی</b><span>{faDateTime(edit.submittedAt)}</span></p></div>}{revisions.data?.map(x=><div key={x.id}><i/><p><b>اصلاح توسط {x.actor}</b><span>{x.reason} · {faDateTime(x.createdAt)}</span></p></div>)}{edit.reviewedAt&&<div><i/><p><b>تأیید توسط {edit.reviewerName}</b><span>{faDateTime(edit.reviewedAt)}</span></p></div>}</div>
- </section>:<div className="empty compact">یک گزارش را برای مشاهده جزئیات انتخاب کنید.</div>}</div>}</div>
+ </section>:<div className="empty compact">یک گزارش را برای مشاهده جزئیات انتخاب کنید.</div>}</div></>}</div>
 }

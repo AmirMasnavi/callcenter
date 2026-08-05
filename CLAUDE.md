@@ -94,6 +94,11 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   `App.tsx`) plus «بیشتر». An admin never files reports — do not rank destinations globally.
 - Prefer an **icon + tooltip + aria-label** over a text button in list rows; a full-width text
   button on every row dominates the list and wraps on a phone.
+- The base sheet positions queue rows with **`div:nth-child(2)`**. Inserting an element at
+  the start of a `.queue button` silently retargets it (the avatar stretched into an
+  ellipse). Append new children LAST and reposition with `order`.
+- `.review-layout` is a two-column grid — anything added as a direct child consumes a cell
+  and displaces the panels. Put toolbars outside it.
 - **900px is the single mobile breakpoint** (where the sidebar swaps for the bottom bar).
   Exactly one navigation is visible at a time — never both.
 - The sidebar was originally a **dark navy gradient**; its children still carry colours meant

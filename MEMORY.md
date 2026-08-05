@@ -206,6 +206,23 @@ Two bugs caught only by checking, not by the build:
   role ARCHIVE_REPORTS broke it. The assertion was too tight — it now checks the revoked
   capability specifically and that the role's other defaults survive.
 
+### 2026-08-05 — Two self-inflicted layout bugs, and admin nav scope
+
+Adding bulk-archive broke the supervisor queue in two ways, both mine:
+1. The checkbox went in as the FIRST child of `.queue button`, which shifted the base
+   sheet's `div:nth-child(2) { flex: 1 }` off the text block and onto the avatar — so the
+   avatar stretched into a long ellipse. Fixed by appending it LAST and using `order: -1`
+   to place it visually first. **Positional CSS selectors make DOM order load-bearing.**
+2. The bulk bar was added as a direct child of the two-column `.review-layout` grid, so it
+   consumed a grid cell and pushed the review card into the wrong column. Toolbars go
+   outside the grid.
+
+**Admin navigation now excludes report filing entirely** (`ADMIN_IRRELEVANT` in App.tsx).
+An admin holds every permission, so "can reach" was a poor filter for "should see" — and
+if they ever need an operator's view, impersonation already exists. The desktop sidebar
+also ranks by persona now; it had been rendering NAV in declaration order, which is why
+"ثبت گزارش" sat at the top for an admin.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
