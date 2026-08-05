@@ -27,8 +27,11 @@ Designed for high data integrity, the system uses optimistic locking for concurr
 
 ## ✨ Key Features
 
-- **Role-Based Access Control (RBAC):** a user may hold **any combination** of these roles,
-  and the interface shows the union of what they grant.
+- **Roles + fine-grained permissions:** a user may hold **any combination** of these roles,
+  and the interface shows the union of what they grant. Roles are only a starting point —
+  an admin can grant or withhold **individual capabilities** per user (adding users, taking
+  Excel/CSV exports, voiding reports, viewing the audit log, and so on), so someone can be
+  given one extra ability without being promoted.
   - **Operator:** Submit, update, and manage draft or pending daily reports.
   - **Supervisor:** Review, approve, reject, or request revisions on team reports with recorded audit logs.
   - **Manager:** Access team analytics, high-level dashboards, performance trends, and Excel/CSV exports.

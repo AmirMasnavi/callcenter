@@ -77,6 +77,22 @@ CREATE TABLE user_roles (
 );
 ```
 
+#### `user_permissions` Table (V6)
+Fine-grained capabilities layered on top of roles. Roles supply the defaults
+(`Permission.defaultsFor`); this table stores only the **exceptions** for a user.
+```sql
+CREATE TABLE user_permissions (
+  user_id    BIGINT      NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  permission VARCHAR(32) NOT NULL,
+  granted    BOOLEAN     NOT NULL,  -- TRUE = add, FALSE = withhold
+  PRIMARY KEY (user_id, permission)
+);
+```
+
+> Effective permissions = role defaults **+** grants **−** revokes. Revokes apply last, so a
+> capability can always be taken back. Storing revokes explicitly means an admin can keep a
+> user in a role while withholding one ability, instead of inventing a role per exception.
+
 #### `daily_reports` Table
 Stores daily performance counters and audit status.
 ```sql

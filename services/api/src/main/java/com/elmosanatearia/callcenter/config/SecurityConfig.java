@@ -49,11 +49,21 @@ public class SecurityConfig {
             .csrf(c -> c.csrfTokenRepository(csrf)
                 .csrfTokenRequestHandler(csrfHandler)
                 .ignoringRequestMatchers("/api/v1/auth/login"))
+            // Gated on capabilities, not roles. A role is just a bundle of these by default,
+            // so an admin can hand out one ability (say, exports) without promoting anyone.
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/api-docs/**", "/api/v1/auth/login", "/api/v1/auth/csrf").permitAll()
-                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/supervisor/**").hasAnyRole("SUPERVISOR", "ADMIN")
-                .requestMatchers("/api/v1/dashboard/**", "/api/v1/exports/**").hasAnyRole("MANAGER", "ADMIN")
+                .requestMatchers("/api/v1/auth/**").authenticated()
+                .requestMatchers("/api/v1/admin/users/**").hasAuthority("PERM_MANAGE_USERS")
+                .requestMatchers("/api/v1/admin/audit").hasAuthority("PERM_VIEW_AUDIT")
+                .requestMatchers("/api/v1/admin/impersonate/**").hasAuthority("PERM_IMPERSONATE")
+                .requestMatchers("/api/v1/admin/reports/*/void", "/api/v1/admin/reports/*/restore").hasAuthority("PERM_VOID_REPORT")
+                .requestMatchers("/api/v1/admin/reports/*/reopen").hasAuthority("PERM_REOPEN_REPORT")
+                .requestMatchers("/api/v1/admin/reports/**").hasAuthority("PERM_VIEW_ALL_REPORTS")
+                .requestMatchers("/api/v1/supervisor/**").hasAuthority("PERM_REVIEW_REPORTS")
+                .requestMatchers("/api/v1/dashboard/**").hasAuthority("PERM_VIEW_DASHBOARD")
+                .requestMatchers("/api/v1/exports/**").hasAuthority("PERM_EXPORT_DATA")
+                .requestMatchers("/api/v1/reports/**").hasAuthority("PERM_SUBMIT_REPORTS")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req,res,ex) -> res.sendError(HttpStatus.UNAUTHORIZED.value()))

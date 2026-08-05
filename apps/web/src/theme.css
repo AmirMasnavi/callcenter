@@ -135,11 +135,25 @@ aside nav button.active, .bottom-nav button.active {
   font-weight: 650;
 }
 
-/* Scroll edge effect instead of a hard 1px divider under floating chrome. */
-.content {
-  --edge-fade: 1.25rem;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--edge-fade));
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--edge-fade));
+/* Scroll edge effect instead of a hard 1px divider where content meets the floating nav.
+   Done with an overlay rather than `mask-image` on .content deliberately: a mask creates
+   a stacking context, which traps any modal rendered inside it (that is precisely how the
+   sheet's save button ended up underneath the bottom nav) and clips popovers. */
+.content-edge {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(3.3rem + env(safe-area-inset-bottom, 0px));
+  height: 1.5rem;
+  pointer-events: none;
+  z-index: 89; /* just under the nav (90) */
+  background: linear-gradient(to top, var(--page-fade, #f4f7fa), transparent);
+}
+@media (min-width: 981px) { .content-edge { display: none; } }
+
+/* Keep page content clear of the fixed bottom nav on small screens. */
+@media (max-width: 980px) {
+  .content { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ------------------------------------------------------------- components */
@@ -205,17 +219,23 @@ aside nav button.active, .bottom-nav button.active {
 
 /* Multi-select role picker: a checkbox list, since roles are not exclusive. */
 .role-picker { display: grid; gap: var(--space-2); }
-.role-option {
+/* Same specificity story as .permission-row — `.modal label` would otherwise force
+   these into a stacked block with stray margins. */
+.modal .role-option, .role-option {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3);
+  margin: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   cursor: pointer;
   background: #fff;
+  font-weight: 400;
+  color: inherit;
   transition: border-color var(--response-fast) var(--ease-out),
-              background-color var(--response-fast) var(--ease-out);
+              background-color var(--response-fast) var(--ease-out),
+              transform var(--response) var(--ease-out);
 }
 .role-option:hover { border-color: var(--blue); }
 .role-option.checked { border-color: var(--blue); background: #f4f9ff; }
@@ -224,11 +244,13 @@ aside nav button.active, .bottom-nav button.active {
 .role-option span { font-size: 0.8125rem; opacity: 0.7; }
 
 /* Sheet / modal. Materialises — blur and scale animate together — rather than
-   plain-fading, so it reads as a real surface arriving. */
+   plain-fading, so it reads as a real surface arriving.
+   Rendered into <body> via components/Sheet.tsx, so no ancestor stacking context
+   can trap it (see the note in that file). z-index sits above the bottom nav (90). */
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -244,13 +266,29 @@ aside nav button.active, .bottom-nav button.active {
   background: #fff;
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-modal);
-  max-height: 88vh;
+  max-height: min(88vh, 100dvh - 2rem);
   overflow-y: auto;
+  overscroll-behavior: contain; /* don't chain scroll to the page behind */
   width: min(34rem, 100%);
   padding: var(--space-5);
   animation: sheet-in var(--response) var(--ease-out);
   transform-origin: center bottom;
+  position: relative;
 }
+.modal .close {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  inset-block-start: var(--space-4);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--bg-subtle);
+  font-size: 1.25rem;
+  line-height: 1;
+  color: inherit;
+}
+.modal .close:hover { background: var(--line); }
 @keyframes sheet-in {
   from { opacity: 0; transform: translateY(1rem) scale(0.97); }
 }
@@ -260,9 +298,11 @@ aside nav button.active, .bottom-nav button.active {
   .modal { align-items: flex-end; padding: 0; }
   .modal > form, .modal > .sheet-body {
     width: 100%;
-    max-height: 92vh;
+    max-height: 92dvh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+    /* Clear the fixed bottom nav *and* the home indicator, so the last control in
+       the sheet is always reachable — this is what hid the save button before. */
+    padding-bottom: calc(var(--space-5) + 3.5rem + env(safe-area-inset-bottom, 0px));
     box-shadow: var(--elevation-sheet);
     animation: none; /* the spring in useSheetDrag owns this */
   }
@@ -277,6 +317,88 @@ aside nav button.active, .bottom-nav button.active {
   .sheet-grabber:active { cursor: grabbing; }
 }
 @media (min-width: 641px) { .sheet-grabber { display: none; } }
+
+/* ------------------------------------------------------------------- motion
+   Hover states are gated behind (hover: hover) so a tap on a phone doesn't leave
+   an element stuck in its hover appearance. Everything animated here is transform
+   or opacity, which the compositor can handle without laying out again. */
+
+@media (hover: hover) and (pointer: fine) {
+  .user-grid article:hover,
+  .kpis article:hover,
+  .profile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-card), 0 12px 28px rgba(18, 58, 99, 0.1);
+  }
+  .queue button:hover, .report-list button:hover, tr:hover td {
+    transform: translateX(-2px); /* RTL: nudge toward the reading edge */
+  }
+  aside nav button:hover:not(.active) { background: rgba(18, 58, 99, 0.05); }
+  [data-theme='dark'] aside nav button:hover:not(.active) { background: rgba(255, 255, 255, 0.06); }
+  .role-option:hover { transform: translateY(-1px); }
+  .theme-choice button:hover { border-color: var(--blue); }
+}
+
+.user-grid article, .kpis article, .profile-card, .queue button, .role-option, tr td {
+  transition: transform var(--response) var(--ease-out),
+              box-shadow var(--response) var(--ease-out),
+              border-color var(--response-fast) var(--ease-out),
+              background-color var(--response-fast) var(--ease-out);
+}
+
+/* The active nav item gets a travelling indicator rather than only a colour change,
+   so the eye can follow where it went. */
+aside nav button, .bottom-nav button { position: relative; }
+aside nav button::after, .bottom-nav button::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  background: var(--blue);
+  transform: scaleX(0);
+  transition: transform var(--response) var(--ease-out);
+}
+aside nav button::after {
+  inset-inline-end: 0;
+  inset-block: 0.35rem;
+  width: 3px;
+  transform: scaleY(0);
+  transform-origin: center;
+}
+aside nav button.active::after { transform: scaleY(1); }
+.bottom-nav button::after {
+  inset-block-start: 0;
+  inset-inline: 25%;
+  height: 3px;
+  transform-origin: center;
+}
+.bottom-nav button.active::after { transform: scaleX(1); }
+
+/* Content arrives with a short, staggered rise. Cheap to run, and it tells you the
+   list is fresh rather than the same rows re-labelled. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.5rem); }
+}
+.page > *, .user-grid article, .kpis article, .queue button {
+  animation: rise-in var(--response) var(--ease-out) both;
+}
+.user-grid article:nth-child(1), .kpis article:nth-child(1), .queue button:nth-child(1) { animation-delay: 0ms; }
+.user-grid article:nth-child(2), .kpis article:nth-child(2), .queue button:nth-child(2) { animation-delay: 40ms; }
+.user-grid article:nth-child(3), .kpis article:nth-child(3), .queue button:nth-child(3) { animation-delay: 80ms; }
+.user-grid article:nth-child(4), .kpis article:nth-child(4), .queue button:nth-child(4) { animation-delay: 120ms; }
+.user-grid article:nth-child(n+5), .kpis article:nth-child(n+5), .queue button:nth-child(n+5) { animation-delay: 160ms; }
+
+.banner { animation: rise-in var(--response) var(--ease-out) both; }
+.impersonation-bar { animation: slide-down var(--response) var(--ease-out) both; }
+@keyframes slide-down { from { transform: translateY(-100%); } }
+
+/* Loading shimmer — status you can see, instead of a frozen screen. */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--line) 37%, var(--bg-subtle) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
 /* ------------------------------------------------------- new page furniture */
 
@@ -390,6 +512,54 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
 .user-card-main small { grid-column: 1 / -1; text-align: start; }
 .view-as { justify-self: stretch; }
 
+/* Capability list. Each row states where the permission comes from, so an admin can see
+   at a glance which are inherited and which they have deliberately changed. */
+.permission-list {
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+/* `.modal label` in the base sheet is display:block with 16px margins, and it outranks a
+   single class — hence the selector weight here. Without it these rows stack and balloon. */
+.modal .permission-row, .permission-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin: 0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: inherit;
+  transition: background-color var(--response-fast) var(--ease-out);
+}
+.permission-row:hover { background: #f4f9ff; }
+.permission-row input { accent-color: var(--blue); width: 1.05rem; height: 1.05rem; flex: none; }
+.permission-name { flex: 1; }
+.permission-row.revoked .permission-name { text-decoration: line-through; opacity: 0.6; }
+
+.perm-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.perm-tag.inherited { background: #eef4fb; color: var(--blue); }
+.perm-tag.added { background: var(--green-light); color: #157a4f; }
+.perm-tag.removed { background: var(--red-light); color: #b03744; }
+
+[data-theme='dark'] .permission-row { background: #16202c; }
+[data-theme='dark'] .permission-row:hover { background: #1b2735; }
+[data-theme='dark'] .perm-tag.inherited { background: #17293c; color: #8fbdf0; }
+[data-theme='dark'] .perm-tag.added { background: #10281d; color: #5fd39c; }
+[data-theme='dark'] .perm-tag.removed { background: #2c1618; color: #f0919b; }
+
 .role-picker-wrap { border: none; padding: 0; margin: 0 0 var(--space-3); }
 .role-picker-wrap legend { font-size: 0.875rem; font-weight: 600; padding: 0 0 var(--space-2); }
 
@@ -406,6 +576,21 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   background: #0e1621;
   --line: #22303f;
   --bg-subtle: #131d2a;
+  --page-fade: #0e1621;
+
+  /* The base sheet uses --navy for ~25 TEXT rules (headings, labels, emphasis).
+     At #123a63 those are near-invisible on a dark background — this is what made
+     headings like "حساب من" unreadable. Remapped to light tints that clear WCAG AA
+     on #0e1621. The two places --navy is used as a BACKGROUND are re-fixed below,
+     otherwise the primary button would turn pale. */
+  --navy: #a9c9ec;
+  --navy-dark: #cfe0f5;
+  --navy-light: #8fb8e4;
+  --blue: #7fb2ec;
+  --blue-hover: #a9c9ec;
+  --yellow: #f0bf47;
+  --green: #4ec48c;
+  --red: #f07b85;
   --material-thick: rgba(18, 27, 38, 0.76);
   --material-regular: rgba(24, 34, 47, 0.7);
   --material-thin: rgba(30, 42, 57, 0.55);
@@ -457,7 +642,27 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
 [data-theme='dark'] .metric-input input { background: transparent; color: inherit; }
 [data-theme='dark'] ::placeholder { color: #7d8fa3; }
 
-[data-theme='dark'] .status.SUBMITTED { background: var(--yellow-light); }
+/* --navy is remapped to a light tint for text, so the two rules that use it as a
+   BACKGROUND need a real, saturated blue back — otherwise the primary button
+   becomes pale-on-white and unreadable. */
+[data-theme='dark'] .primary,
+[data-theme='dark'] .report-tabs button.active,
+[data-theme='dark'] .operator-chips button.active,
+[data-theme='dark'] .segmented button.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+[data-theme='dark'] .primary:hover:not(:disabled) { background: #3b82f6; border-color: #3b82f6; }
+
+/* Muted greys from the base sheet are too dim against #0e1621. */
+[data-theme='dark'] :is(.user-grid div span, .user-grid small, .eyebrow, figcaption, .hint) { color: #9fb2c6; }
+[data-theme='dark'] .page-head p { color: #a8bacd; }
+[data-theme='dark'] .status.SUBMITTED { background: var(--yellow-light); color: #f0bf47; }
+[data-theme='dark'] .role-chip.AGENT { background: #17293c; color: #8fbdf0; }
+[data-theme='dark'] .role-chip.SUPERVISOR { background: #2c2410; color: #f0c65c; }
+[data-theme='dark'] .role-chip.MANAGER { background: #10281d; color: #5fd39c; }
+[data-theme='dark'] .role-chip.ADMIN { background: #241a33; color: #c4a3ee; }
 [data-theme='dark'] :is(aside nav button, .bottom-nav button) { color: #b9c8d8; }
 [data-theme='dark'] :is(aside nav button.active, .bottom-nav button.active) { color: #fff; }
 [data-theme='dark'] .banner.info { background: #14243a; }
@@ -501,6 +706,17 @@ button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue
   .modal > form, .modal > .sheet-body { animation: fade-in 0.15s ease both; transform: none !important; }
   @keyframes fade-in { from { opacity: 0; } }
   button:active:not(:disabled) { transform: none; opacity: 0.75; }
+  /* Keep the feedback, drop the travel: hovers become colour-only, entrances a
+     plain cross-fade, and the shimmer stops looping. */
+  .page > *, .user-grid article, .kpis article, .queue button, .banner, .impersonation-bar {
+    animation: fade-in 0.15s ease both !important;
+  }
+  .user-grid article:hover, .kpis article:hover, .profile-card:hover,
+  .queue button:hover, .report-list button:hover, tr:hover td, .role-option:hover {
+    transform: none;
+  }
+  .skeleton { animation: none; background: var(--bg-subtle); }
+  aside nav button::after, .bottom-nav button::after { transition: opacity 0.12s ease; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

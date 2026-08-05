@@ -28,7 +28,33 @@ The Call Center System exposes a RESTful JSON API at base path `/api/v1`. Intera
   }
   ```
   > `roles` is an **array** — a user may hold several (e.g. `["SUPERVISOR","MANAGER"]`).
+  > `permissions` is what clients should key off; roles are only where those came from.
   > `impersonatedBy` is the id of the admin currently viewing as this user, otherwise `null`.
+
+### Permissions
+
+Every endpoint is authorized on a **permission**, not a role. Roles supply defaults, and an
+admin may grant or revoke individual capabilities per user — so an operator can be given
+`EXPORT_DATA` without becoming a manager.
+
+| Permission | Grants access to | Default roles |
+| :--- | :--- | :--- |
+| `SUBMIT_REPORTS` | `/api/v1/reports/**` | AGENT |
+| `REVIEW_REPORTS` | `/api/v1/supervisor/**` | SUPERVISOR |
+| `VIEW_ALL_REPORTS` | every team's reports, `/api/v1/admin/reports` | MANAGER |
+| `VIEW_DASHBOARD` | `/api/v1/dashboard/**` | MANAGER |
+| `EXPORT_DATA` | `/api/v1/exports/**` | MANAGER |
+| `MANAGE_USERS` | `/api/v1/admin/users/**` | ADMIN |
+| `MANAGE_ROLES` | editing roles and permissions | ADMIN |
+| `VIEW_AUDIT` | `/api/v1/admin/audit` | ADMIN |
+| `VOID_REPORT` | void / restore a report | ADMIN |
+| `REOPEN_REPORT` | reopen an approved report | ADMIN |
+| `IMPERSONATE` | `/api/v1/admin/impersonate/**` | ADMIN |
+
+`GET /api/v1/admin/permissions` returns this catalogue (id, Persian label, default roles).
+User create/update accept `grantedPermissions` and `revokedPermissions`; the response
+carries `effectivePermissions`, `rolePermissions`, `grantedPermissions` and
+`revokedPermissions` so a UI can show where each capability comes from.
 
 ### 2. User Logout
 - **URL:** `POST /api/v1/auth/logout`

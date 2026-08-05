@@ -1,11 +1,13 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, Role, roleLabel } from '../lib/api';
+import { api, apiUrl, fa, Me, MIN_PASSWORD_LENGTH, Permission, permissionLabel, Role, roleLabel } from '../lib/api';
 import Loading from '../components/Loading';
-import { useSheetDrag } from '../lib/motion';
+import Sheet from '../components/Sheet';
 
 type User = {
   id: number; username: string; displayName: string; roles: Role[];
+  effectivePermissions: Permission[]; rolePermissions: Permission[];
+  grantedPermissions: Permission[]; revokedPermissions: Permission[];
   supervisorId?: number; supervisorName?: string;
   active: boolean; mustChangePassword: boolean; hasAvatar: boolean;
 };
@@ -20,8 +22,21 @@ const ALL_ROLES = Object.keys(ROLE_HELP) as Role[];
 
 const emptyForm = {
   username: '', displayName: '', roles: ['AGENT'] as Role[],
+  grantedPermissions: [] as Permission[], revokedPermissions: [] as Permission[],
   supervisorId: '', active: true, temporaryPassword: '',
 };
+
+/** What the chosen roles grant on their own — mirrors Permission.defaultsFor on the server. */
+const ROLE_DEFAULTS: Record<Role, Permission[]> = {
+  AGENT: ['SUBMIT_REPORTS'],
+  SUPERVISOR: ['REVIEW_REPORTS'],
+  MANAGER: ['VIEW_DASHBOARD', 'EXPORT_DATA', 'VIEW_ALL_REPORTS'],
+  ADMIN: Object.keys(permissionLabel) as Permission[],
+};
+const defaultsFor = (roles: Role[]) =>
+  new Set(roles.flatMap(r => ROLE_DEFAULTS[r]));
+
+const ALL_PERMISSIONS = Object.keys(permissionLabel) as Permission[];
 
 export default function AdminPage() {
   const qc = useQueryClient();
@@ -76,6 +91,7 @@ export default function AdminPage() {
     setEditing(u.id); setAvatar(undefined); save.reset();
     setForm({
       username: u.username, displayName: u.displayName, roles: u.roles,
+      grantedPermissions: u.grantedPermissions ?? [], revokedPermissions: u.revokedPermissions ?? [],
       supervisorId: u.supervisorId ? String(u.supervisorId) : '',
       active: u.active, temporaryPassword: '',
     });
@@ -86,6 +102,31 @@ export default function AdminPage() {
       ...f,
       roles: f.roles.includes(role) ? f.roles.filter(r => r !== role) : [...f.roles, role],
     }));
+  }
+
+  /**
+   * One checkbox per capability, but the meaning depends on whether the roles already
+   * grant it: ticking something a role doesn't give is a GRANT, unticking something a
+   * role does give is a REVOKE. Anything matching the role default is stored as neither,
+   * so changing roles later still behaves predictably.
+   */
+  function togglePermission(permission: Permission) {
+    setForm(f => {
+      const fromRoles = defaultsFor(f.roles).has(permission);
+      const currentlyOn = fromRoles
+        ? !f.revokedPermissions.includes(permission)
+        : f.grantedPermissions.includes(permission);
+      const turningOn = !currentlyOn;
+      return {
+        ...f,
+        grantedPermissions: !fromRoles && turningOn
+          ? [...f.grantedPermissions, permission]
+          : f.grantedPermissions.filter(p => p !== permission),
+        revokedPermissions: fromRoles && !turningOn
+          ? [...f.revokedPermissions, permission]
+          : f.revokedPermissions.filter(p => p !== permission),
+      };
+    });
   }
 
   const supervisors = q.data?.filter(u => u.roles.includes('SUPERVISOR')) ?? [];
@@ -159,6 +200,7 @@ export default function AdminPage() {
       {open && (
         <UserSheet
           editing={!!editing} form={form} setForm={setForm} toggleRole={toggleRole}
+          togglePermission={togglePermission}
           supervisors={supervisors} setAvatar={setAvatar}
           error={save.error?.message} busy={save.isPending}
           onClose={() => setOpen(false)}
@@ -169,11 +211,46 @@ export default function AdminPage() {
   );
 }
 
+/**
+ * Capabilities, shown as one list with the source made explicit: inherited from a role,
+ * added on top, or withheld. Without that labelling an admin cannot tell why a box is
+ * ticked, and unticking a role-granted item looks like a bug rather than an exception.
+ */
+function PermissionPicker({ form, toggle }: { form: typeof emptyForm; toggle: (p: Permission) => void }) {
+  const fromRoles = defaultsFor(form.roles);
+  return (
+    <fieldset className="role-picker-wrap">
+      <legend>دسترسی‌ها</legend>
+      <p className="hint">
+        نقش‌ها به‌طور پیش‌فرض دسترسی‌های زیر را می‌دهند. می‌توانید مورد به مورد اضافه یا کم کنید.
+      </p>
+      <div className="permission-list">
+        {ALL_PERMISSIONS.map(p => {
+          const inherited = fromRoles.has(p);
+          const revoked = form.revokedPermissions.includes(p);
+          const granted = form.grantedPermissions.includes(p);
+          const on = inherited ? !revoked : granted;
+          return (
+            <label key={p} className={'permission-row' + (on ? ' on' : '') + (revoked ? ' revoked' : '')}>
+              <input type="checkbox" checked={on} onChange={() => toggle(p)} />
+              <span className="permission-name">{permissionLabel[p]}</span>
+              {inherited && !revoked && <span className="perm-tag inherited">از نقش</span>}
+              {granted && <span className="perm-tag added">افزوده</span>}
+              {revoked && <span className="perm-tag removed">حذف‌شده</span>}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 interface SheetProps {
   editing: boolean;
   form: typeof emptyForm;
   setForm: (f: typeof emptyForm) => void;
   toggleRole: (r: Role) => void;
+  togglePermission: (p: Permission) => void;
   supervisors: User[];
   setAvatar: (f?: File) => void;
   error?: string;
@@ -182,18 +259,11 @@ interface SheetProps {
   onSubmit: (e: FormEvent) => void;
 }
 
-function UserSheet({ editing, form, setForm, toggleRole, supervisors, setAvatar, error, busy, onClose, onSubmit }: SheetProps) {
-  // On phones this is a real sheet: dragged 1:1 and thrown away by a flick.
-  const drag = useSheetDrag(onClose);
+function UserSheet({ editing, form, setForm, toggleRole, togglePermission, supervisors, setAvatar, error, busy, onClose, onSubmit }: SheetProps) {
   return (
-    <div className="modal" onMouseDown={onClose}>
-      <form onMouseDown={e => e.stopPropagation()} onSubmit={onSubmit}
-            ref={drag.ref as React.Ref<HTMLFormElement>}
-            onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove}
-            onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}>
-        <div className="sheet-grabber" aria-hidden="true" />
-        <button type="button" className="close" onClick={onClose} aria-label="بستن">×</button>
-        <h2>{editing ? 'ویرایش حساب' : 'ساخت حساب جدید'}</h2>
+    <Sheet onClose={onClose} labelledBy="user-sheet-title">
+      <form onSubmit={onSubmit}>
+        <h2 id="user-sheet-title">{editing ? 'ویرایش حساب' : 'ساخت حساب جدید'}</h2>
 
         <label>نام و نام خانوادگی
           <input required value={form.displayName}
@@ -220,6 +290,8 @@ function UserSheet({ editing, form, setForm, toggleRole, supervisors, setAvatar,
           </div>
           {!form.roles.length && <small className="field-error">حداقل یک نقش لازم است.</small>}
         </fieldset>
+
+        <PermissionPicker form={form} toggle={togglePermission} />
 
         {/* A supervisor only means something for someone who files reports. */}
         {form.roles.includes('AGENT') && (
@@ -249,6 +321,6 @@ function UserSheet({ editing, form, setForm, toggleRole, supervisors, setAvatar,
           {busy ? 'در حال ذخیره…' : editing ? 'ذخیره تغییرات' : 'ساخت حساب'}
         </button>
       </form>
-    </div>
+    </Sheet>
   );
 }

@@ -45,8 +45,9 @@ public class AuthController {
     public record ChangePasswordRequest(String currentPassword,
                                         @NotBlank @Size(min = MIN_PASSWORD_LENGTH, max = 100) String newPassword) {}
 
+    /** {@code permissions} is what the UI should actually key off — roles are only their source. */
     public record Me(Long id, String username, String displayName, Set<Role> roles,
-                     boolean mustChangePassword, Long impersonatedBy) {}
+                     Set<Permission> permissions, boolean mustChangePassword, Long impersonatedBy) {}
 
     @GetMapping("/csrf") public void csrf(org.springframework.security.web.csrf.CsrfToken token) { token.getToken(); }
 
@@ -73,7 +74,8 @@ public class AuthController {
         AppPrincipal p = (AppPrincipal) auth.getPrincipal();
         AppUser current = users.findById(p.id()).orElseThrow();
         return new Me(current.getId(), current.getUsername(), current.getDisplayName(),
-                current.getRoles(), current.isMustChangePassword(), p.impersonatedBy());
+                current.getRoles(), current.effectivePermissions(),
+                current.isMustChangePassword(), p.impersonatedBy());
     }
 
     @PostMapping("/change-password") @ResponseStatus(HttpStatus.NO_CONTENT)

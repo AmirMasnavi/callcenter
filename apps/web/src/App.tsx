@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, apiUrl, hasRole, Me, primaryRole, Role, roleLabel } from './lib/api';
+import { api, apiUrl, can, Me, Permission, primaryRole, roleLabel } from './lib/api';
 import Login from './pages/Login';
 import Loading from './components/Loading';
 
@@ -10,23 +10,24 @@ const ManagerPage = lazy(() => import('./pages/ManagerPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ProfilePage = lazy(() => import('./pages/Profile'));
 
-interface NavItem { path: string; icon: string; label: string; roles: Role[] }
+interface NavItem { path: string; icon: string; label: string; needs?: Permission[] }
 
 /*
- * Nav is derived from the union of the user's roles, not a single one — that is the
- * whole point of the multi-role model. Labels name their contents ("بررسی گزارش‌ها"),
- * never a vague umbrella, so the destination is predictable before you arrive.
+ * Nav is driven by what the user may DO, not by which role they hold. An operator granted
+ * EXPORT_DATA sees the dashboard without being promoted to manager. Labels name their
+ * contents ("بررسی گزارش‌ها"), never a vague umbrella.
  */
 const NAV: NavItem[] = [
-  { path: '/app/report',    icon: '＋', label: 'ثبت گزارش',     roles: ['AGENT'] },
-  { path: '/app/history',   icon: '◷', label: 'گزارش‌های من',   roles: ['AGENT'] },
-  { path: '/app/review',    icon: '✓', label: 'بررسی گزارش‌ها', roles: ['SUPERVISOR', 'MANAGER', 'ADMIN'] },
-  { path: '/app/dashboard', icon: '▦', label: 'داشبورد',       roles: ['MANAGER', 'ADMIN'] },
-  { path: '/app/admin',     icon: '♟', label: 'کاربران',        roles: ['ADMIN'] },
-  { path: '/app/profile',   icon: '☺', label: 'حساب من',        roles: ['AGENT', 'SUPERVISOR', 'MANAGER', 'ADMIN'] },
+  { path: '/app/report',    icon: '＋', label: 'ثبت گزارش',     needs: ['SUBMIT_REPORTS'] },
+  { path: '/app/history',   icon: '◷', label: 'گزارش‌های من',   needs: ['SUBMIT_REPORTS'] },
+  { path: '/app/review',    icon: '✓', label: 'بررسی گزارش‌ها', needs: ['REVIEW_REPORTS'] },
+  { path: '/app/dashboard', icon: '▦', label: 'داشبورد',       needs: ['VIEW_DASHBOARD'] },
+  { path: '/app/admin',     icon: '♟', label: 'کاربران',        needs: ['MANAGE_USERS'] },
+  { path: '/app/profile',   icon: '☺', label: 'حساب من' },
 ];
 
-const navFor = (roles: Role[]) => NAV.filter(item => item.roles.some(r => roles.includes(r)));
+const navFor = (me: Me) =>
+  NAV.filter(item => !item.needs || item.needs.some(p => me.permissions?.includes(p)));
 
 export default function App() {
   const qc = useQueryClient();
@@ -48,7 +49,7 @@ export default function App() {
     return () => { removeEventListener('popstate', pop); removeEventListener('auth:expired', expired); };
   }, [qc]);
 
-  const nav = user ? navFor(user.roles) : [];
+  const nav = user ? navFor(user) : [];
   const home = nav[0]?.path ?? '/app/profile';
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function App() {
   function loggedIn(m: Me) {
     qc.setQueryData(['me'], m);
     setPromptDismissed(false);
-    navigate(navFor(m.roles)[0]?.path ?? '/app/profile', true);
+    navigate(navFor(m)[0]?.path ?? '/app/profile', true);
   }
 
   if (me.isLoading) return <Loading />;
@@ -138,12 +139,14 @@ export default function App() {
         <Suspense fallback={<Loading />}>
           {active === '/app/report' ? <AgentPage view="form" />
             : active === '/app/history' ? <AgentPage view="history" />
-            : active === '/app/review' ? <SupervisorPage isAdmin={hasRole(user, 'ADMIN')} />
+            : active === '/app/review' ? <SupervisorPage canVoid={can(user, 'VOID_REPORT')} canReopen={can(user, 'REOPEN_REPORT')} />
             : active === '/app/dashboard' ? <ManagerPage />
             : active === '/app/profile' ? <ProfilePage me={user} />
             : <AdminPage />}
         </Suspense>
       </main>
+
+      <div className="content-edge" aria-hidden="true" />
 
       <nav className="bottom-nav">
         {nav.map(n => (

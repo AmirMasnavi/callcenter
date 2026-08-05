@@ -35,22 +35,43 @@ could change → MEMORY.md.
 | `infrastructure/nginx/` | Reverse proxy config |
 | `docs/` | Architecture, API, schema, deployment, developer guide |
 
-## Roles & Access
+## Roles & Permissions
 
-**A user holds a SET of roles** (`user_roles` table), not one. `AppPrincipal` grants one
-`ROLE_*` authority per role, so `hasAnyRole(...)` in `SecurityConfig` works unchanged.
-Route prefixes: `/api/v1/admin/**` = ADMIN, `/api/v1/supervisor/**` = SUPERVISOR+ADMIN,
-`/api/v1/dashboard/**` and `/api/v1/exports/**` = MANAGER+ADMIN.
+Two layers, and the distinction matters:
 
-When checking access, **test the widest role first**. Someone who is both SUPERVISOR and
-ADMIN must get admin breadth, not supervisor narrowness — see `assertCanReview`.
+- **Roles** (`user_roles`) say what *kind* of user someone is. A user holds a SET of them.
+- **Permissions** (`Permission` enum) say what they may *do*. Roles carry defaults
+  (`Permission.defaultsFor`); `user_permissions` stores only the **exceptions** per user —
+  `granted = true` adds a capability, `granted = false` withholds one the role would give.
 
-Admin extras: sees/acts on every report, void+restore (soft delete), reopen an approved
-report, and impersonate a user (a real session swap — admin routes 403 while impersonating).
+Effective = role defaults + grants − revokes (`AppUser.effectivePermissions`). Revokes are
+applied last so an admin can always take something back.
+
+**Authorize on permissions, not roles.** `SecurityConfig` gates every route on
+`hasAuthority("PERM_…")`, and service checks use `principal.can(Permission.X)`. That is what
+lets an operator be granted `EXPORT_DATA` without being promoted to manager. `AppPrincipal`
+publishes both `ROLE_*` and `PERM_*` authorities, so role checks still work where genuinely
+about identity rather than capability.
+
+When scoping data, **check the widest permission first** — `VIEW_ALL_REPORTS` before the
+team-scoped `REVIEW_REPORTS`, or a supervisor-and-admin gets the narrower access
+(see `assertCanReview`).
+
+Adding a permission: add to the enum (with a Persian label), map it in `Permission.defaultsFor`,
+gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` and
+`ROLE_DEFAULTS` in `AdminPage.tsx`.
 
 ## Frontend conventions
 
-- Nav is the **union** of the user's roles (`NAV` in `App.tsx`); never key UI off a single role.
+- Nav and controls key off **permissions** (`can()` / `canAny()` in `lib/api.ts`), not roles.
+  `NAV` in `App.tsx` declares what each destination `needs`.
+- **Modals must render through `components/Sheet.tsx`** (a portal to `<body>`). Any ancestor
+  with a mask, filter or transform creates a stacking context that traps a nested modal
+  regardless of z-index — that is exactly how the save button ended up under the bottom nav.
+  For the same reason, don't put `mask-image` on `.content`.
+- `.modal label` in the base sheet is `display:block` with margins and **outranks a single
+  class**. New label-based controls inside a sheet need `.modal .your-class` specificity or
+  they silently stack and balloon in height.
 - **Appearance defaults to light and never silently follows the OS.** Dark is an explicit
   choice in Profile (`lib/theme.ts` sets `data-theme`; `theme.css` keys the dark palette off it).
   Do not reintroduce a bare `@media (prefers-color-scheme: dark)` — it takes the choice away.

@@ -46,6 +46,37 @@ reach), and `display: contents` on the user-card button removed it from the acce
 tree, leaving unnamed buttons. Both fixed. The lesson holds generally — a green build says
 nothing about whether the UI is right.
 
+### 2026-08-05 — Permissions layer, plus three UI defects found by looking
+
+**Granular permissions (V6).** Roles were too coarse: the ask was "let admin give a user
+*some* abilities, like adding users or taking Excel/CSV exports". Roles now supply defaults
+and `user_permissions` stores only the exceptions (grant or revoke) per user. Every route is
+authorized on `PERM_*` rather than a role. Verified end to end: an operator granted
+`EXPORT_DATA` gets 200 on `/exports` while still 403 on `/dashboard` and `/admin/users`, and a
+supervisor with `REVIEW_REPORTS` revoked keeps the role but loses the queue.
+
+Revokes are applied after grants deliberately, and only real exceptions are persisted — a
+"grant" of something the role already gives is dropped, so changing someone's roles later
+doesn't resurrect a stale override with new meaning.
+
+**Three defects, all invisible to the build:**
+
+1. **The save button was unreachable.** `mask-image` on `.content` (my own scroll-edge
+   effect) creates a stacking context, so the modal's `z-index: 100` could not escape it and
+   the bottom nav painted on top. Modals now portal to `<body>` via `components/Sheet.tsx`,
+   and the edge fade is an overlay rather than a mask. **A high z-index means nothing if an
+   ancestor has a mask/filter/transform.**
+2. **Dark text was unreadable.** ~25 base rules use `color: var(--navy)` (#123a63) on a dark
+   background. Fixed by remapping `--navy`/`--blue` to light tints in dark mode, then
+   explicitly restoring a saturated blue for the two rules that use `--navy` as a *background*
+   (`.primary`, `.report-tabs button.active`) — otherwise the primary button turns pale.
+3. **Sheet rows ballooned.** `.modal label { display:block; margin:16px 0 6px }` outranks a
+   single class, so `.role-option`/`.permission-row` stacked instead of laying out as rows.
+
+Motion pass also landed: hover lift (gated behind `@media (hover: hover)` so taps don't stick),
+a travelling active-nav indicator, staggered list entrances, and a shimmer skeleton — all
+neutralised under `prefers-reduced-motion`.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
@@ -64,8 +95,9 @@ nothing about whether the UI is right.
   in that one spot. Converting those sheets to tokens would remove the whole class of bug.
 - **Avatar fetch is open to any authenticated user** (`GET /api/v1/users/{id}/avatar`), with
   no role or team scoping.
-- **Test coverage is thin** — 3 backend tests and 2 frontend tests against 27 Java files.
-  Testcontainers is on the classpath but no integration test uses it.
+- **Test coverage is still thin** — 12 backend (3 report rules + 9 permission) and 2 frontend
+  tests. Testcontainers is on the classpath but no integration test uses it. The permission
+  *resolution* is covered; the route-level authorization is only verified by hand.
 - **`ManagerPage` bundle is ~1.15 MB** (ECharts, not code-split). Vite warns on every build.
 
 ## Changelog Notes

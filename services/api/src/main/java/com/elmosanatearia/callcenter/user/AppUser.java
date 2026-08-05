@@ -25,6 +25,11 @@ public class AppUser {
     @Column(name = "role", nullable = false, length = 24)
     @Enumerated(EnumType.STRING)
     private Set<Role> roles = new LinkedHashSet<>();
+    /** Only the exceptions to what {@link #roles} already grant. */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_permissions", joinColumns = @JoinColumn(name = "user_id"))
+    private Set<UserPermission> permissionOverrides = new LinkedHashSet<>();
+
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "supervisor_id")
     private AppUser supervisor;
     @Column(nullable = false)
@@ -49,6 +54,16 @@ public class AppUser {
     public Set<Role> getRoles() { return roles; }
     public void setRoles(Set<Role> roles) { this.roles = new LinkedHashSet<>(roles); }
     public boolean hasRole(Role role) { return roles.contains(role); }
+
+    public Set<UserPermission> getPermissionOverrides() { return permissionOverrides; }
+    public void setPermissionOverrides(Set<UserPermission> overrides) {
+        this.permissionOverrides = new LinkedHashSet<>(overrides);
+    }
+    /** Roles' defaults, plus explicit grants, minus explicit revokes. */
+    public Set<Permission> effectivePermissions() {
+        return Permission.effective(roles, permissionOverrides);
+    }
+    public boolean can(Permission permission) { return effectivePermissions().contains(permission); }
     public AppUser getSupervisor() { return supervisor; }
     public void setSupervisor(AppUser supervisor) { this.supervisor = supervisor; }
     public boolean isActive() { return active; }

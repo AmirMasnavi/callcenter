@@ -3,9 +3,9 @@ import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';
 import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';
 import Loading from'../components/Loading';
 type Revision={id:number;actor:string;reason:string;createdAt:string};
-// `isAdmin` unlocks the void/reopen controls. The list endpoint already widens to every
-// team server-side for an admin, so no separate query is needed here.
-export default function SupervisorPage({isAdmin=false}:{isAdmin?:boolean}){
+// Void and reopen are separate capabilities, so they unlock independently. The list
+// endpoint already widens to every team server-side, so no separate query is needed here.
+export default function SupervisorPage({canVoid=false,canReopen=false}:{canVoid?:boolean,canReopen?:boolean}){
  const qc=useQueryClient(),q=useQuery({queryKey:['team-reports'],queryFn:()=>api<Report[]>('/api/v1/supervisor/reports')});
  const[adminAction,setAdminAction]=useState<'void'|'reopen'>(),[adminReason,setAdminReason]=useState('');
  const[tab,setTab]=useState<'PENDING'|'DONE'|'ALL'>('PENDING'),[search,setSearch]=useState(''),[selected,setSelected]=useState<Report>(),[edit,setEdit]=useState<Report>(),[reason,setReason]=useState('');
@@ -36,16 +36,16 @@ export default function SupervisorPage({isAdmin=false}:{isAdmin?:boolean}){
  {(changed||approved)&&<label className="notes required">دلیل {approved?'اصلاح مجدد':'اصلاح'}<textarea required value={reason} onChange={e=>setReason(e.target.value)} placeholder="دلیل تغییر را برای تاریخچه ثبت کنید…"/></label>}
  {review.error&&<div className="error">{review.error.message}</div>}
  <button className="primary wide review-submit" disabled={!valid||(!changed&&approved)||(!!changed&&!reason.trim())||review.isPending} onClick={()=>review.mutate()}>{approved?'ثبت اصلاح مجدد':changed?'اصلاح و تأیید نهایی':'تأیید گزارش'} ✓</button>
- {isAdmin&&<section className="admin-actions"><h3>اختیارات مدیر سامانه</h3>
+ {(canVoid||canReopen)&&<section className="admin-actions"><h3>اختیارات ویژه</h3>
   {!adminAction
    ?<div className="admin-action-row">
-     {approved&&<button className="secondary" onClick={()=>{setAdminAction('reopen');setAdminReason('')}}>بازگشایی برای اصلاح</button>}
-     <button className="danger" onClick={()=>{setAdminAction('void');setAdminReason('')}}>ابطال گزارش</button>
+     {canReopen&&approved&&<button className="secondary" onClick={()=>{setAdminAction('reopen');setAdminReason('')}}>بازگشایی برای اصلاح</button>}
+     {canVoid&&<button className="danger" onClick={()=>{setAdminAction('void');setAdminReason('')}}>ابطال گزارش</button>}
     </div>
    :<div className="admin-confirm">
      {/* A confirmation step only because voiding is the one hard-to-undo action here. */}
      <p>{adminAction==='void'
-      ?'گزارش ابطال می‌شود و از فهرست‌ها حذف می‌گردد. سابقه و تاریخچه باقی می‌ماند و مدیر سامانه می‌تواند آن را بازگرداند.'
+      ?'گزارش ابطال می‌شود و از فهرست‌ها حذف می‌گردد. سابقه و تاریخچه باقی می‌ماند و قابل بازگردانی است.'
       :'گزارش به وضعیت «در انتظار تأیید» بازمی‌گردد و تأیید قبلی پاک می‌شود.'}</p>
      <label className="notes required">دلیل
       <textarea required value={adminReason} onChange={e=>setAdminReason(e.target.value)} placeholder="دلیل را برای تاریخچه ثبت کنید…"/>

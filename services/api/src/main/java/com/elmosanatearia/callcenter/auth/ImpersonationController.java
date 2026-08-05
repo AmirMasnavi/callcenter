@@ -41,7 +41,7 @@ public class ImpersonationController {
         audits.save(new AuditEvent(users.findById(admin.id()).orElseThrow(), "IMPERSONATE_START",
                 "AppUser", userId.toString(), target.getUsername()));
         return new AuthController.Me(target.getId(), target.getUsername(), target.getDisplayName(),
-                target.getRoles(), target.isMustChangePassword(), admin.id());
+                target.getRoles(), target.effectivePermissions(), target.isMustChangePassword(), admin.id());
     }
 
     @PostMapping("/api/v1/auth/stop-impersonating") @Transactional
@@ -55,7 +55,7 @@ public class ImpersonationController {
         replaceSession(restored, request, response);
         audits.save(new AuditEvent(admin, "IMPERSONATE_STOP", "AppUser", String.valueOf(current.id()), current.username()));
         return new AuthController.Me(admin.getId(), admin.getUsername(), admin.getDisplayName(),
-                admin.getRoles(), admin.isMustChangePassword(), null);
+                admin.getRoles(), admin.effectivePermissions(), admin.isMustChangePassword(), null);
     }
 
     private void replaceSession(AppPrincipal principal, HttpServletRequest request, HttpServletResponse response) {
