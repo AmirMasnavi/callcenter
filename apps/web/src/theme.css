@@ -1,0 +1,530 @@
+/*
+ * Apple-design foundations layered over the existing sheet.
+ * Loaded last so these rules win where they overlap.
+ *
+ * Principles applied here: instant pointer-down response, translucent materials that
+ * content scrolls under, size-specific tracking/leading, and gentler (never absent)
+ * feedback when the user asks for reduced motion.
+ */
+
+:root {
+  /* Motion. Springs live in JS (useSpring); these curves cover non-gesture UI.
+     --ease-out is the outbound path, --ease-in its mirror for the return. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.64, 0, 0.78, 0);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --response-fast: 0.18s;   /* press feedback */
+  --response: 0.32s;        /* default UI move */
+  --response-slow: 0.44s;   /* large surfaces */
+
+  /* Materials. Weight encodes hierarchy: thick separates regions, thin lifts controls. */
+  --material-thick: rgba(248, 250, 252, 0.72);
+  --material-regular: rgba(255, 255, 255, 0.68);
+  --material-thin: rgba(255, 255, 255, 0.52);
+  --material-blur-thick: blur(30px) saturate(180%);
+  --material-blur-regular: blur(20px) saturate(180%);
+  --material-edge: rgba(255, 255, 255, 0.5);
+
+  /* Bigger surfaces read as thicker: stronger blur *and* a deeper shadow. */
+  --elevation-chip: 0 1px 2px rgba(18, 58, 99, 0.06);
+  --elevation-card: 0 4px 16px rgba(18, 58, 99, 0.07);
+  --elevation-sheet: 0 -8px 40px rgba(11, 37, 66, 0.16);
+  --elevation-modal: 0 24px 64px rgba(11, 37, 66, 0.24);
+
+  --scrim: rgba(11, 37, 66, 0.32);
+
+  /* Spacing in rem so a larger text setting scales the layout with it. */
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.5rem; --space-6: 2rem;
+
+  --tap-target: 2.75rem; /* 44px at default text size */
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------- typography
+   Tracking is size-specific: large text tightens, small text opens up slightly.
+   Leading moves inversely to size. */
+
+.display, .page-head h1, .login-card h2 {
+  line-height: 1.12;
+  letter-spacing: -0.021em;
+  font-weight: 700;
+  font-optical-sizing: auto;
+}
+.page-head h1 { font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.125rem); }
+.login-card h2 { font-size: clamp(1.375rem, 1.1rem + 1.2vw, 1.875rem); }
+
+.login-art h1 {
+  line-height: 1.08;
+  letter-spacing: -0.026em; /* the largest type on the site tightens the most */
+}
+
+h2, h3 { line-height: 1.25; letter-spacing: -0.012em; }
+
+body { line-height: 1.6; letter-spacing: 0; }
+
+/* Small text needs the opposite treatment — a touch of positive tracking. */
+.eyebrow, small, .role, caption, th, .badge, figcaption {
+  letter-spacing: 0.012em;
+}
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: none;
+  opacity: 0.72;
+}
+
+/* Dense tabular data tightens its leading. */
+table { line-height: 1.4; }
+td, th { font-variant-numeric: tabular-nums; }
+
+/* -------------------------------------------------------------- response
+   Feedback lives on the press and is instant — never deferred to click. */
+
+button, .tappable, a.button, [role='button'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* removes the legacy ~300ms tap delay */
+  transition: transform var(--response-fast) var(--ease-out),
+              background-color var(--response-fast) var(--ease-out),
+              opacity var(--response-fast) var(--ease-out);
+}
+button:active:not(:disabled), .tappable:active, [role='button']:active {
+  transform: scale(0.97);
+  transition-duration: 0.1s;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Comfortable hit targets with ~10px of forgiveness around small controls. */
+.bottom-nav button, aside nav button, .icon-button {
+  min-height: var(--tap-target);
+  min-width: var(--tap-target);
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* -------------------------------------------------------------- materials
+   Chrome floats as a translucent layer; content scrolls underneath it. */
+
+.app-shell > aside {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-blur-thick);
+  backdrop-filter: var(--material-blur-thick);
+  border-inline-start: 1px solid var(--material-edge);
+}
+
+.bottom-nav {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-blur-thick);
+  backdrop-filter: var(--material-blur-thick);
+  border-top: 1px solid var(--material-edge); /* bright edge = light catching the material */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Vibrancy: text over a translucent surface gets more contrast and weight,
+   never flat grey, or it dissolves as the backdrop changes. */
+aside nav button, .bottom-nav button {
+  color: #22405e;
+  font-weight: 500;
+}
+aside nav button.active, .bottom-nav button.active {
+  color: var(--navy);
+  font-weight: 650;
+}
+
+/* Scroll edge effect instead of a hard 1px divider under floating chrome. */
+.content {
+  --edge-fade: 1.25rem;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--edge-fade));
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--edge-fade));
+}
+
+/* ------------------------------------------------------------- components */
+
+/* Status banner — non-blocking, sits above content without a scrim. */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  background: var(--yellow-light);
+  border: 1px solid rgba(244, 181, 27, 0.35);
+  box-shadow: var(--elevation-chip);
+}
+.banner.info { background: #eef4fb; border-color: rgba(27, 86, 141, 0.25); }
+.banner.warn { background: var(--yellow-light); }
+.banner p { margin: 0; flex: 1; font-size: 0.9375rem; }
+.banner strong { display: block; }
+
+/* Impersonation bar — deliberately loud. You must never forget you are someone else. */
+.impersonation-bar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--navy);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+}
+.impersonation-bar button {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Role chips — a person can hold several, so they must read as a set. */
+.role-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.role-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: #eef4fb;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.role-chip.ADMIN { background: #f3ecfb; color: #6b3fa0; }
+.role-chip.MANAGER { background: var(--green-light); color: #157a4f; }
+.role-chip.SUPERVISOR { background: var(--yellow-light); color: #9a6b00; }
+.role-chip.AGENT { background: #eef4fb; color: var(--blue); }
+
+/* Multi-select role picker: a checkbox list, since roles are not exclusive. */
+.role-picker { display: grid; gap: var(--space-2); }
+.role-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  background: #fff;
+  transition: border-color var(--response-fast) var(--ease-out),
+              background-color var(--response-fast) var(--ease-out);
+}
+.role-option:hover { border-color: var(--blue); }
+.role-option.checked { border-color: var(--blue); background: #f4f9ff; }
+.role-option input { margin-top: 0.2rem; accent-color: var(--blue); width: 1.05rem; height: 1.05rem; }
+.role-option b { display: block; font-size: 0.9375rem; }
+.role-option span { font-size: 0.8125rem; opacity: 0.7; }
+
+/* Sheet / modal. Materialises — blur and scale animate together — rather than
+   plain-fading, so it reads as a real surface arriving. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: scrim-in var(--response) var(--ease-out);
+}
+@keyframes scrim-in { from { opacity: 0; } }
+
+.modal > form, .modal > .sheet-body {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-modal);
+  max-height: 88vh;
+  overflow-y: auto;
+  width: min(34rem, 100%);
+  padding: var(--space-5);
+  animation: sheet-in var(--response) var(--ease-out);
+  transform-origin: center bottom;
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(1rem) scale(0.97); }
+}
+
+/* On phones the modal becomes a bottom sheet you can actually throw away. */
+@media (max-width: 640px) {
+  .modal { align-items: flex-end; padding: 0; }
+  .modal > form, .modal > .sheet-body {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+    box-shadow: var(--elevation-sheet);
+    animation: none; /* the spring in useSheetDrag owns this */
+  }
+  .sheet-grabber {
+    width: 2.25rem;
+    height: 0.3125rem;
+    border-radius: 999px;
+    background: rgba(18, 58, 99, 0.22);
+    margin: 0 auto var(--space-3);
+    cursor: grab;
+  }
+  .sheet-grabber:active { cursor: grabbing; }
+}
+@media (min-width: 641px) { .sheet-grabber { display: none; } }
+
+/* ------------------------------------------------------- new page furniture */
+
+/* Inline validation messaging. Status, not decoration. */
+.hint { display: block; font-size: 0.8125rem; opacity: 0.68; margin: calc(var(--space-1) * -1) 0 var(--space-2); }
+.field-error { display: block; font-size: 0.8125rem; color: var(--red); margin: calc(var(--space-1) * -1) 0 var(--space-2); font-weight: 550; }
+.success {
+  background: var(--green-light);
+  color: #157a4f;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font-size: 0.9375rem;
+  font-weight: 550;
+}
+
+/* Profile */
+.profile-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  align-items: start;
+}
+.profile-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--elevation-card);
+  display: grid;
+  gap: var(--space-3);
+}
+.profile-card h2 { margin: 0 0 var(--space-1); font-size: 1.125rem; }
+/* The base sheet only styles inputs inside login/modal/report cards, so Profile's
+   would otherwise fall back to the browser's native control. */
+.profile-card :is(input, select, textarea) {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fafcff;
+  transition: background-color var(--response-fast) var(--ease-out),
+              border-color var(--response-fast) var(--ease-out);
+}
+.profile-card :is(input, select, textarea):focus {
+  background: #fff;
+  border-color: var(--blue);
+  outline: none;
+}
+.profile-card label { display: block; font-size: 0.875rem; font-weight: 550; margin-bottom: var(--space-1); }
+.profile-card > div > b { display: block; font-size: 1.0625rem; }
+.profile-card > div > span { opacity: 0.7; font-size: 0.875rem; }
+
+/* Admin actions inside the review card — destructive work is visually separated. */
+.admin-actions {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--line);
+}
+.admin-actions h3 { margin: 0 0 var(--space-3); font-size: 0.9375rem; opacity: 0.75; }
+.admin-action-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.admin-confirm { display: grid; gap: var(--space-2); }
+.admin-confirm p {
+  margin: 0;
+  font-size: 0.875rem;
+  background: var(--yellow-light);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+button.danger {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+}
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: inherit;
+}
+button.ghost:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+
+/* User cards: the card body edits, the footer button impersonates.
+   Two actions, so they must be two controls — not one card with a hidden second meaning.
+   The body is a real button (not display:contents, which drops it from the
+   accessibility tree and leaves it without a name). */
+.user-grid article {
+  display: grid;
+  gap: var(--space-3);
+  cursor: default;
+}
+.user-card-main {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: inherit;
+  color: inherit;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+.user-card-main .role-chips { grid-column: 3; justify-content: flex-end; }
+.user-card-main small { grid-column: 1 / -1; text-align: start; }
+.view-as { justify-self: stretch; }
+
+.role-picker-wrap { border: none; padding: 0; margin: 0 0 var(--space-3); }
+.role-picker-wrap legend { font-size: 0.875rem; font-weight: 600; padding: 0 0 var(--space-2); }
+
+/* ------------------------------------------------------------- dark mode
+   Opt-in, never automatic. Dark is hard to read for some people, so the app
+   defaults to light and the user chooses (Profile → ظاهر برنامه). "System"
+   is resolved in JS (lib/theme.ts), which sets data-theme — that keeps this
+   one block as the single source of truth for the dark palette.
+   Colour is eased rather than switched abruptly; see the transition below. */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e8eef6;
+  background: #0e1621;
+  --line: #22303f;
+  --bg-subtle: #131d2a;
+  --material-thick: rgba(18, 27, 38, 0.76);
+  --material-regular: rgba(24, 34, 47, 0.7);
+  --material-thin: rgba(30, 42, 57, 0.55);
+  --material-edge: rgba(255, 255, 255, 0.09);
+  --scrim: rgba(0, 0, 0, 0.52);
+  --yellow-light: #2c2410;
+  --green-light: #10281d;
+  --red-light: #2c1618;
+}
+
+[data-theme='dark'] body { background: #0e1621; color: #e8eef6; }
+[data-theme='dark'] .success { background: var(--green-light); color: #58d09b; }
+
+/* The base sheet hardcodes a light palette throughout. Rather than leave a
+   half-dark UI, every surface it paints white is remapped here. */
+[data-theme='dark'] .content,
+[data-theme='dark'] .login-page { background: #0e1621; }
+
+[data-theme='dark'] :is(.form-card, .history, .charts section, .table-card, .review-card,
+.login-card, .queue button, .filters, .export button, .kpis article,
+.user-grid article, .modal form, .modal > .sheet-body,
+.role-option, .profile-card, .date-box, .pending-count,
+.supervisor-stats span, .supervisor-toolbar,
+.report-tabs button, .operator-chips button, .secondary) {
+  background: #16202c;
+  border-color: var(--line);
+  color: #e8eef6;
+}
+[data-theme='dark'] .role-option.checked { background: #17293c; }
+[data-theme='dark'] .segmented button.active { background: #22303f; color: #fff; }
+[data-theme='dark'] :is(.report-list button:hover, tr:hover td) { background: #1b2735; }
+[data-theme='dark'] th { background: #131d2a; color: #b9c8d8; }
+
+/* Inputs keep a slightly recessed surface so fields still read as wells.
+   The base sheet paints these #fafcff, so each of its selectors is matched here. */
+[data-theme='dark'] :is(input, select, textarea) { color: #e8eef6; border-color: var(--line); }
+[data-theme='dark'] :is(.metric-input, .notes textarea, .review-fields input,
+.login-card input, .modal input, .modal select,
+.report-label input, .supervisor-toolbar input,
+.filters input, .filters select,
+.profile-card input, .profile-card select, .profile-card textarea) {
+  background: #131d2a;
+  color: #e8eef6;
+  border-color: var(--line);
+}
+[data-theme='dark'] :is(.metric-input:focus-within, .notes textarea:focus, .login-card input:focus,
+.modal input:focus, .modal select:focus, .review-fields input:focus,
+.report-label input:focus, .supervisor-toolbar input:focus) { background: #1b2735; }
+[data-theme='dark'] .metric-input input { background: transparent; color: inherit; }
+[data-theme='dark'] ::placeholder { color: #7d8fa3; }
+
+[data-theme='dark'] .status.SUBMITTED { background: var(--yellow-light); }
+[data-theme='dark'] :is(aside nav button, .bottom-nav button) { color: #b9c8d8; }
+[data-theme='dark'] :is(aside nav button.active, .bottom-nav button.active) { color: #fff; }
+[data-theme='dark'] .banner.info { background: #14243a; }
+[data-theme='dark'] .sheet-grabber { background: rgba(255, 255, 255, 0.28); }
+
+/* Ease the light<->dark change instead of jumping brightness. Suppressed on the
+   first paint (see lib/theme.ts) so the initial load doesn't animate. */
+:root.theme-ready body,
+:root.theme-ready .content,
+:root.theme-ready .login-page {
+  transition: background-color var(--response-slow) var(--ease-inout),
+              color var(--response-slow) var(--ease-inout);
+}
+
+/* Appearance picker (Profile) */
+.theme-choice { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.theme-choice button {
+  flex: 1 1 6rem;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font-weight: 550;
+}
+.theme-choice button.active { border-color: var(--blue); color: var(--blue); background: #f4f9ff; }
+[data-theme='dark'] .theme-choice button.active { background: #17293c; color: #7fb6ee; }
+
+/* --------------------------------------------------- accessibility signals
+   Three independent preferences, each handled on its own terms. */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Not "no feedback" — a gentler, non-vestibular equivalent. Colour and opacity
+     changes stay because they aid comprehension; travel and overshoot go. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.12s !important;
+    scroll-behavior: auto !important;
+  }
+  .modal > form, .modal > .sheet-body { animation: fade-in 0.15s ease both; transform: none !important; }
+  @keyframes fade-in { from { opacity: 0; } }
+  button:active:not(:disabled) { transform: none; opacity: 0.75; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --material-thick: #f4f7fa;
+    --material-regular: #fff;
+    --material-thin: #fff;
+  }
+  .app-shell > aside, .bottom-nav, .modal {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .content { mask-image: none; -webkit-mask-image: none; }
+  :root[data-theme='dark'] { --material-thick: #131d2a; --material-regular: #16202c; --material-thin: #16202c; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --line: #6b7d90; }
+  .app-shell > aside, .bottom-nav {
+    background: Canvas;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: currentColor;
+  }
+  .role-chip, .banner, .role-option { border: 1px solid currentColor; }
+  :where(button, a, input, select, textarea):focus-visible { outline-width: 3px; }
+}

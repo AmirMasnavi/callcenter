@@ -3,14 +3,25 @@ import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';
 import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';
 import Loading from'../components/Loading';
 type Revision={id:number;actor:string;reason:string;createdAt:string};
-export default function SupervisorPage(){
+// `isAdmin` unlocks the void/reopen controls. The list endpoint already widens to every
+// team server-side for an admin, so no separate query is needed here.
+export default function SupervisorPage({isAdmin=false}:{isAdmin?:boolean}){
  const qc=useQueryClient(),q=useQuery({queryKey:['team-reports'],queryFn:()=>api<Report[]>('/api/v1/supervisor/reports')});
+ const[adminAction,setAdminAction]=useState<'void'|'reopen'>(),[adminReason,setAdminReason]=useState('');
  const[tab,setTab]=useState<'PENDING'|'DONE'|'ALL'>('PENDING'),[search,setSearch]=useState(''),[selected,setSelected]=useState<Report>(),[edit,setEdit]=useState<Report>(),[reason,setReason]=useState('');
  const revisions=useQuery({queryKey:['revisions',selected?.id],queryFn:()=>api<Revision[]>(`/api/v1/supervisor/reports/${selected!.id}/revisions`),enabled:!!selected});
  const filtered=useMemo(()=>q.data?.filter(r=>(tab==='ALL'||(tab==='PENDING'?r.status==='SUBMITTED':r.status==='APPROVED'||r.status==='CORRECTED_APPROVED'))&&(!search||`${r.agentName} ${r.reportLabel||''}`.includes(search)))||[],[q.data,tab,search]);
  const counts={pending:q.data?.filter(r=>r.status==='SUBMITTED').length||0,done:q.data?.filter(r=>r.status==='APPROVED'||r.status==='CORRECTED_APPROVED').length||0};
  const review=useMutation({mutationFn:()=>api<Report>(`/api/v1/supervisor/reports/${edit!.id}/approve`,{method:'POST',body:JSON.stringify({...edit,correctionReason:reason})}),onSuccess:r=>{setSelected(r);setEdit({...r});setReason('');qc.invalidateQueries({queryKey:['team-reports']});qc.invalidateQueries({queryKey:['revisions',r.id]})}});
- function choose(r:Report){setSelected(r);setEdit({...r});setReason('')}
+ const adminMutation=useMutation({
+  mutationFn:()=>adminAction==='void'
+   ?api<Report>(`/api/v1/admin/reports/${edit!.id}/void`,{method:'POST',body:JSON.stringify({version:edit!.version,reason:adminReason})})
+   :api<Report>(`/api/v1/admin/reports/${edit!.id}/reopen`,{method:'POST',body:JSON.stringify({version:edit!.version,target:'SUBMITTED',reason:adminReason})}),
+  onSuccess:r=>{setAdminAction(undefined);setAdminReason('');
+   // A voided report leaves every list, so drop the selection rather than show a ghost.
+   if(r.voided){setSelected(undefined);setEdit(undefined)}else{setSelected(r);setEdit({...r})}
+   qc.invalidateQueries({queryKey:['team-reports']});qc.invalidateQueries({queryKey:['revisions',r.id]})}});
+ function choose(r:Report){setSelected(r);setEdit({...r});setReason('');setAdminAction(undefined);setAdminReason('')}
  const changed=!!selected&&!!edit&&['totalPeople','contactedCount','okCount','maybeCount','noCount','noAnswerCount','notes'].some(k=>selected[k as keyof Report]!==edit[k as keyof Report]);
  const approved=selected?.status==='APPROVED'||selected?.status==='CORRECTED_APPROVED';
  const sum=(edit?.okCount||0)+(edit?.maybeCount||0)+(edit?.noCount||0)+(edit?.noAnswerCount||0);
@@ -25,6 +36,29 @@ export default function SupervisorPage(){
  {(changed||approved)&&<label className="notes required">دلیل {approved?'اصلاح مجدد':'اصلاح'}<textarea required value={reason} onChange={e=>setReason(e.target.value)} placeholder="دلیل تغییر را برای تاریخچه ثبت کنید…"/></label>}
  {review.error&&<div className="error">{review.error.message}</div>}
  <button className="primary wide review-submit" disabled={!valid||(!changed&&approved)||(!!changed&&!reason.trim())||review.isPending} onClick={()=>review.mutate()}>{approved?'ثبت اصلاح مجدد':changed?'اصلاح و تأیید نهایی':'تأیید گزارش'} ✓</button>
+ {isAdmin&&<section className="admin-actions"><h3>اختیارات مدیر سامانه</h3>
+  {!adminAction
+   ?<div className="admin-action-row">
+     {approved&&<button className="secondary" onClick={()=>{setAdminAction('reopen');setAdminReason('')}}>بازگشایی برای اصلاح</button>}
+     <button className="danger" onClick={()=>{setAdminAction('void');setAdminReason('')}}>ابطال گزارش</button>
+    </div>
+   :<div className="admin-confirm">
+     {/* A confirmation step only because voiding is the one hard-to-undo action here. */}
+     <p>{adminAction==='void'
+      ?'گزارش ابطال می‌شود و از فهرست‌ها حذف می‌گردد. سابقه و تاریخچه باقی می‌ماند و مدیر سامانه می‌تواند آن را بازگرداند.'
+      :'گزارش به وضعیت «در انتظار تأیید» بازمی‌گردد و تأیید قبلی پاک می‌شود.'}</p>
+     <label className="notes required">دلیل
+      <textarea required value={adminReason} onChange={e=>setAdminReason(e.target.value)} placeholder="دلیل را برای تاریخچه ثبت کنید…"/>
+     </label>
+     {adminMutation.error&&<div className="error">{adminMutation.error.message}</div>}
+     <div className="admin-action-row">
+      <button className={adminAction==='void'?'danger':'primary'} disabled={!adminReason.trim()||adminMutation.isPending} onClick={()=>adminMutation.mutate()}>
+       {adminMutation.isPending?'در حال ثبت…':adminAction==='void'?'تأیید ابطال':'تأیید بازگشایی'}
+      </button>
+      <button className="secondary" onClick={()=>setAdminAction(undefined)}>انصراف</button>
+     </div>
+    </div>}
+ </section>}
  <div className="timeline"><h3>تاریخچه گزارش</h3><div><i/><p><b>ثبت توسط {edit.agentName}</b><span>{faDateTime(edit.createdAt)}</span></p></div>{edit.submittedAt&&<div><i/><p><b>ارسال برای بررسی</b><span>{faDateTime(edit.submittedAt)}</span></p></div>}{revisions.data?.map(x=><div key={x.id}><i/><p><b>اصلاح توسط {x.actor}</b><span>{x.reason} · {faDateTime(x.createdAt)}</span></p></div>)}{edit.reviewedAt&&<div><i/><p><b>تأیید توسط {edit.reviewerName}</b><span>{faDateTime(edit.reviewedAt)}</span></p></div>}</div>
  </section>:<div className="empty compact">یک گزارش را برای مشاهده جزئیات انتخاب کنید.</div>}</div>}</div>
 }
