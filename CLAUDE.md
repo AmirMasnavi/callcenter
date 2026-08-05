@@ -94,6 +94,11 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   `App.tsx`) plus «بیشتر». An admin never files reports — do not rank destinations globally.
 - Prefer an **icon + tooltip + aria-label** over a text button in list rows; a full-width text
   button on every row dominates the list and wraps on a phone.
+- **900px is the single mobile breakpoint** (where the sidebar swaps for the bottom bar).
+  Exactly one navigation is visible at a time — never both.
+- The sidebar was originally a **dark navy gradient**; its children still carry colours meant
+  for dark. Anything added there needs a token-based override, and `usability.css` had
+  `!important` rules from that era — check for them before assuming a rule "doesn't work".
 
 ## Code Style
 

@@ -147,10 +147,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   z-index: 89; /* just under the nav (90) */
   background: linear-gradient(to top, var(--bg), transparent);
 }
-@media (min-width: 981px) { .content-edge { display: none; } }
+@media (min-width: 901px) { .content-edge { display: none; } }
 
 /* Keep page content clear of the fixed bottom nav on small screens. */
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   .content { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
 }
 
@@ -1013,7 +1013,6 @@ table { max-width: 100%; }
    rather than a hairline crowding the text. */
 
 .bottom-nav {
-  display: flex;
   justify-content: space-around;
   align-items: stretch;
   gap: 0;
@@ -1155,7 +1154,7 @@ aside nav button::after { background: var(--accent); border-radius: 999px; }
    Mobile Safari force-zooms the page whenever a focused form control has a font-size
    below 16px — and it never zooms back out, which is why the app felt permanently
    zoomed after the first tap on a field. 16px is the threshold, not a preference. */
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   input, select, textarea {
     font-size: max(16px, 1rem);
   }
@@ -1166,9 +1165,7 @@ aside nav button::after { background: var(--accent); border-radius: 999px; }
    unbranded on a phone. A slim translucent header keeps it present without stealing room. */
 .mobile-header {
   display: none;
-  position: sticky;
-  top: 0;
-  z-index: 70;
+  position: static;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--gutter, 1rem);
@@ -1178,7 +1175,7 @@ aside nav button::after { background: var(--accent); border-radius: 999px; }
   backdrop-filter: var(--material-blur-thick);
   border-bottom: 1px solid var(--border);
 }
-@media (max-width: 980px) { .mobile-header { display: flex; } }
+@media (max-width: 900px) { .mobile-header { display: flex; } }
 .mobile-header img { width: 1.75rem; height: 1.75rem; object-fit: contain; flex: none; }
 .mobile-header .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .mobile-header .brand-text b { font-size: 0.9375rem; letter-spacing: -0.01em; }
@@ -1268,3 +1265,134 @@ aside nav button::after { background: var(--accent); border-radius: 999px; }
 }
 .head-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .head-actions .primary { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* ============================================ desktop vs mobile chrome
+   Exactly one navigation is visible at a time. The bottom bar duplicated the sidebar on
+   large screens, which is both redundant and confusing. */
+@media (min-width: 901px) {
+  .bottom-nav { display: none !important; }
+  .mobile-header { display: none !important; }
+}
+@media (max-width: 900px) {
+  .bottom-nav { display: flex; }
+}
+
+/* The sidebar logout was drawn in muted ink on a translucent panel and was genuinely hard
+   to see. It now reads as a real control, and turns red only on approach. */
+.aside-user .logout-btn {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface);
+  opacity: 1;
+}
+.aside-user .logout-btn:hover {
+  color: var(--text-on-accent);
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
+}
+
+/* Checkbox rows: the control belongs beside its label, not stacked above it.
+   `.modal label`/`.profile-card label` force display:block, which broke the alignment. */
+.modal .toggle, .profile-card .toggle, label.toggle {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+label.toggle input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+/* ===================================================== supervisor review
+   On a phone the detail panel was stacked under the queue, so tapping a report looked
+   like nothing happened — the panel was a full screen further down. Below 900px the two
+   become one view at a time: pick from the queue, review, come back. */
+.back-to-queue {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 550;
+}
+.back-to-queue:hover { border-color: var(--accent); color: var(--accent); }
+
+@media (max-width: 900px) {
+  .review-layout.detail-open .queue { display: none; }
+  .review-layout.detail-open .back-to-queue { display: inline-flex; }
+  /* Nothing to review yet: the placeholder just repeated what the empty queue says. */
+  .review-layout:not(.detail-open) > .empty.compact { display: none; }
+}
+
+/* Desktop keeps the split, but the panel needs to be visibly anchored. */
+@media (min-width: 901px) {
+  .review-card { position: sticky; top: var(--space-4); }
+}
+
+/* Status chips were inconsistent in size and sat awkwardly against the text. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+  line-height: 1.5;
+  white-space: nowrap;
+  flex: none;
+}
+.queue button .status { align-self: flex-start; }
+.review-title { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.review-title > div { min-width: 0; }
+.review-title b { display: block; font-size: 1rem; line-height: 1.35; }
+.review-title span { font-size: 0.8125rem; color: var(--text-muted); }
+
+/* ============================================ sidebar: light material
+   The sidebar was designed as a dark navy gradient, so its children carry colours meant
+   for dark (white text, rgba(255,255,255,…) fills, #c4d3e2 / #9cb1c7 ink). Turning the
+   panel into a light material left all of those stranded — that is why the logout icon
+   was near-invisible and the brand text disappeared. Overridden as a set rather than one
+   symptom at a time. */
+.app-shell > aside { color: var(--text-primary); }
+.app-shell > aside .brand { border-bottom-color: var(--border); }
+.app-shell > aside .brand b { color: var(--text-primary); }
+.app-shell > aside .brand span { color: var(--text-muted); }
+.app-shell > aside nav button { color: var(--text-secondary); }
+.app-shell > aside nav button:hover:not(.active) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.app-shell > aside nav button.active {
+  background: var(--accent-tint);
+  color: var(--accent);
+  border-right-color: var(--accent);
+  box-shadow: none;
+}
+.app-shell > aside .aside-user { border-top-color: var(--border); }
+.app-shell > aside .aside-user b { color: var(--text-primary); }
+.app-shell > aside .aside-user span { color: var(--text-muted); }
+.app-shell > aside .avatar { background: var(--accent-tint); color: var(--accent); }
+
+/* Logout: a real, visible control. */
+.app-shell > aside .logout-btn {
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+}
+.app-shell > aside .logout-btn:hover {
+  color: var(--text-on-accent);
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
+}

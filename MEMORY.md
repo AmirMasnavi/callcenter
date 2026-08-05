@@ -162,6 +162,26 @@ form at the top of the page, and row actions are icons.
 **RTL gotcha:** `inset-inline-start` is the RIGHT edge, so an absolutely-positioned action
 landed on top of the avatar. Always check which physical side a logical property resolves to.
 
+### 2026-08-05 — Desktop chrome, stranded dark-sidebar styles
+
+**The bottom bar appeared on desktop** beside the sidebar: my rebuild set `display: flex`
+with no breakpoint, overriding the base sheet's mobile-only rule. Both mobile chrome
+elements are now explicitly hidden above 900px, and 900px is the single breakpoint (I had
+drifted between 900 and 980).
+
+**The logout icon resisted four separate fixes** because `usability.css` set its colour,
+background and border with `!important` — left over from when the sidebar was a dark navy
+gradient. Removing those (rather than escalating the !important war) took it from 1.32:1 to
+7.56:1. The wider lesson: the sidebar's children are still styled for a dark panel, so
+anything added there needs a token-based override, and a rule that "doesn't work" is worth
+checking for `!important` before adding specificity.
+
+The mobile brand header is static, not sticky — content was passing under it.
+
+**Supervisor review on mobile**: the detail panel was stacked below the queue, a full screen
+down, so selecting a report looked like nothing happened. Below 900px the two are now one
+view at a time with a back control. Status chips got consistent sizing.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is

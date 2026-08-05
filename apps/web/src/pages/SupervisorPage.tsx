@@ -2,6 +2,7 @@ import{useMemo,useState}from'react';
 import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';
 import{api,apiUrl,fa,faDate,faDateTime,Report,statusLabel}from'../lib/api';
 import Loading from'../components/Loading';
+import Icon from'../components/Icon';
 type Revision={id:number;actor:string;reason:string;createdAt:string};
 // Void and reopen are separate capabilities, so they unlock independently. The list
 // endpoint already widens to every team server-side, so no separate query is needed here.
@@ -28,8 +29,12 @@ export default function SupervisorPage({canVoid=false,canReopen=false}:{canVoid?
  const valid=!!edit&&edit.totalPeople>0&&edit.contactedCount<=edit.totalPeople&&sum===edit.contactedCount&&(edit.attendeeCount==null||edit.attendeeCount<=edit.totalPeople);
  return <div className="page supervisor"><header className="page-head"><div><span className="eyebrow">پنل ناظر</span><h1>کنترل عملکرد تیم</h1><p>گزارش‌های در انتظار، تأییدشده و اصلاحات تیم در یک جا.</p></div><div className="supervisor-stats"><span><b>{fa(counts.pending)}</b> در انتظار</span><span><b>{fa(counts.done)}</b> تأییدشده</span></div></header>
  <section className="supervisor-toolbar"><div className="segmented"><button className={tab==='PENDING'?'active':''} onClick={()=>setTab('PENDING')}>در انتظار ({fa(counts.pending)})</button><button className={tab==='DONE'?'active':''} onClick={()=>setTab('DONE')}>تأییدشده ({fa(counts.done)})</button><button className={tab==='ALL'?'active':''} onClick={()=>setTab('ALL')}>همه</button></div><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="جست‌وجوی اپراتور یا عنوان…"/></section>
- {q.isLoading?<Loading/>:<div className="review-layout"><section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={selected?.id===r.id?'active':''} key={r.id} onClick={()=>choose(r)}><div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span></button>)}</section>
- {edit?<section className="review-card"><div className="review-title"><div><b>{edit.agentName} — {edit.reportLabel||'گزارش بدون عنوان'}</b><span>{faDate(edit.reportDate)} · ارسال: {faDateTime(edit.submittedAt)}</span></div><span className={'status '+edit.status}>{statusLabel[edit.status]}</span></div>
+ {q.isLoading?<Loading/>:<div className={'review-layout'+(edit?' detail-open':'')}><section className="queue">{!filtered.length&&<div className="empty compact">گزارشی در این بخش نیست.</div>}{filtered.map(r=><button className={selected?.id===r.id?'active':''} key={r.id} onClick={()=>choose(r)}><div className="avatar">{r.agentName.slice(0,1)}<img src={apiUrl(`/api/v1/users/${r.agentId}/avatar`)} onError={e=>e.currentTarget.style.display='none'}/></div><div><b>{r.agentName}</b><small>{r.school||r.reportLabel||'بدون عنوان'} · {faDate(r.reportDate)}</small><small>{faDateTime(r.submittedAt||r.createdAt)}</small></div><span className={'status '+r.status}>{statusLabel[r.status]}</span></button>)}</section>
+ {edit?<section className="review-card">
+ <button className="back-to-queue" onClick={()=>{setSelected(undefined);setEdit(undefined)}}>
+  <Icon name="back" size={18}/><span>بازگشت به فهرست</span>
+ </button>
+ <div className="review-title"><div><b>{edit.agentName} — {edit.reportLabel||'گزارش بدون عنوان'}</b><span>{faDate(edit.reportDate)} · ارسال: {faDateTime(edit.submittedAt)}</span></div><span className={'status '+edit.status}>{statusLabel[edit.status]}</span></div>
  <div className="review-fields">{([['totalPeople','کل افراد'],['contactedCount','تماس‌گرفته'],['okCount','OK'],['maybeCount','شاید'],['noCount','NO'],['noAnswerCount','جواب نداد']]as const).map(([k,l])=><label key={k}>{l}<input inputMode="numeric" value={edit[k]} onChange={e=>setEdit({...edit,[k]:Math.max(0,Number(e.target.value)||0)})}/></label>)}</div>
  <div className="review-attendance">
   <label>مدرسه<input maxLength={160} value={edit.school||''} onChange={e=>setEdit({...edit,school:e.target.value})} placeholder="نام مدرسه"/></label>
