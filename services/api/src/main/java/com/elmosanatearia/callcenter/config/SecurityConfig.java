@@ -72,7 +72,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/attendance/report/**", "/api/v1/attendance/report",
                                  "/api/v1/attendance/window",
                                  "/api/v1/attendance/report.xlsx").hasAuthority("PERM_VIEW_ATTENDANCE")
-                .requestMatchers("/api/v1/payroll/periods/close").hasAuthority("PERM_CLOSE_PAYROLL_PERIOD")
+                // Settling a cycle is paying someone; reading the board is not.
+                .requestMatchers("/api/v1/payroll/employees/*/close",
+                                 "/api/v1/payroll/employees/*/target-days",
+                                 "/api/v1/payroll/employees/*/daily-minutes")
+                        .hasAuthority("PERM_CLOSE_PAYROLL_PERIOD")
                 .requestMatchers("/api/v1/payroll/**").hasAuthority("PERM_VIEW_ATTENDANCE")
                 // A manager may look at the board without being able to write to it.
                 .requestMatchers("/api/v1/attendance/today").hasAuthority("PERM_VIEW_PRESENCE")

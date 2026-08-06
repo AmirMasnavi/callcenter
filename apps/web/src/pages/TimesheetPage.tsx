@@ -419,17 +419,31 @@ function PrintableTimesheet({ from, to, userId, onDone }: {
   });
 
   const ready = details.isSuccess;
-  // Print once the sheets are actually painted — firing earlier gives blank pages. Two frames
-  // is the reliable signal that layout has run; a timeout is a guess about how slow the device is.
+  /*
+   * Print once the sheets are painted, and stay mounted until printing is over.
+   *
+   * Calling onDone() straight after window.print() produced a blank page: the call returns
+   * before the document is serialised — always when "Save as PDF" is chosen — so React had
+   * already unmounted the sheets by the time the PDF was captured. `afterprint` is the event
+   * that actually means "done"; the timeout is only a fallback for browsers that never fire it.
+   */
   useEffect(() => {
     if (!ready) return;
-    let cancelled = false;
+    let finished = false;
+    const finish = () => { if (!finished) { finished = true; onDone(); } };
+
+    window.addEventListener('afterprint', finish);
+    let fallback: number;
     const frame = requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (cancelled) return;
       window.print();
-      onDone();
+      fallback = window.setTimeout(finish, 1000);
     }));
-    return () => { cancelled = true; cancelAnimationFrame(frame); };
+
+    return () => {
+      window.removeEventListener('afterprint', finish);
+      cancelAnimationFrame(frame);
+      clearTimeout(fallback);
+    };
   }, [ready, onDone]);
 
   if (details.isError) return <div className="print-loading">آماده‌سازی فرم ناموفق بود.</div>;
