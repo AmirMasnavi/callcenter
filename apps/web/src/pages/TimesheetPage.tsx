@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import lazyPage from '../lib/lazyPage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, can, fa, faDate, Me } from '../lib/api';
 import Loading from '../components/Loading';
@@ -9,7 +10,7 @@ import { asHours, signedHours } from './AttendancePage';
 
 /* ECharts is ~1MB. The list and the totals are what people come for; the chart can arrive a
    moment later rather than delaying the whole screen. */
-const HoursChart = lazy(() => import('../components/HoursChart'));
+const HoursChart = lazyPage(() => import('../components/HoursChart'));
 
 export interface StaffSummary {
   userId: number; displayName: string; username: string;

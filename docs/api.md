@@ -243,15 +243,43 @@ Persian message.
 
 | Endpoint | Purpose |
 | :---- | :---- |
+| `GET /api/v1/attendance/window?days=N` | Resolves the last N **working** days to a date range — the client never does its own weekend maths |
 | `GET /api/v1/attendance/report?from=&to=` | Hours *and* call performance per person for the range |
 | `GET /api/v1/attendance/report/details?from=&to=` | Every person's day-by-day sheet in one call — what the printable form uses |
 | `GET /api/v1/attendance/report/{userId}?from=&to=` | One person's sheet |
-| `GET /api/v1/attendance/report.xlsx?from=&to=` | Two sheets: summary, and daily detail laid out like the paper form |
+| `GET /api/v1/attendance/report.xlsx?from=&to=[&userId=]` | Two sheets: summary, and daily detail laid out like the paper form. `userId` narrows it to one person without changing the shape |
 
 The report covers anyone with hours in the range, **not only active operators** — someone who
-left mid-period is still owed the time they worked. `targetPercent` is measured against each
-person's own `monthly_hours_target`, falling back to the `attendance.default-monthly-hours`
-setting (150).
+left mid-period is still owed the time they worked.
+
+`targetMinutes` is `expectedDays × dailyTargetMinutes`, where `expectedDays` is the working
+days the range contains (Fridays excluded) and the daily rate comes from the person's own
+`daily_target_minutes`, falling back to the `attendance.daily-target-minutes` setting (300 —
+five hours). Thirty working days therefore still comes to 150 hours, while a ten-day window is
+measured against fifty rather than against a month it could not reach.
+
+`daysShort` — expected days with no attendance at all — is reported separately from the hours,
+because attending eight of ten days and arriving late every day are different problems.
+
+### Presence — `PERM_VIEW_PRESENCE` (manager, front desk, payroll)
+
+`GET /api/v1/attendance/today` — every operator with their current state and today's total.
+Held by managers without `RECORD_ATTENDANCE`, so they can see who is in the building while
+recording stays the front desk's job.
+
+### Pay periods — `PERM_VIEW_ATTENDANCE`, closing needs `PERM_CLOSE_PAYROLL_PERIOD`
+
+| Endpoint | Purpose |
+| :---- | :---- |
+| `GET /api/v1/payroll/periods` | Every cycle, newest first. Exactly one is open; it is created lazily on first read |
+| `GET /api/v1/payroll/periods/{id}/lines` | Per-person figures. Live for the open cycle, frozen for a closed one |
+| `POST /api/v1/payroll/periods/close` | Settles the open cycle and opens the next. Body `{endsOn?, note?}` |
+
+Closing copies each person's totals into `payroll_period_lines` and never recomputes them:
+shifts stay correctable indefinitely, and a closed period that recomputed itself would
+silently change what somebody was paid months ago. It is **irreversible**, and returns `409`
+naming anyone who still has an open shift — an open shift counts as zero minutes and would
+otherwise be frozen at nothing.
 
 ---
 

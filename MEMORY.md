@@ -323,6 +323,61 @@ Other things worth remembering:
 - The seeder guarded on `reports.count() > 0`, so operators added later got nothing. Guarding
   **per operator** means a new account gets a history and existing data is never touched.
 
+### 2026-08-06 — v2: what the targets actually mean, and pay cycles
+
+The user's sharpest note this round was that a ten-day view was being measured against a
+150-hour month. That is not a display bug; the number was answering a question nobody asked.
+
+**The target is a daily rate now** (`attendance.daily-target-minutes`, 300 = five hours), and
+a period's target is `expectedDays × rate`. Thirty working days is still 150 hours, so a full
+cycle is unchanged, but every shorter window finally has a denominator it can reach. Two
+consequences worth remembering:
+- **"۳۰ روز" means thirty working days**, so it spans 34 calendar days — the Fridays inside
+  are skipped. The client asks `/attendance/window?days=N` instead of doing its own date
+  maths, so there is one definition of where the weekend falls.
+- **`daysShort` is separate from the percentage.** Turning up for eight of ten days and
+  turning up late every day both produce "80%", and they need different conversations.
+
+**Pay cycles (V12).** The screen could only ask "what do the last N days look like right
+now" — a moving window, so the same question a week later gives a different answer and there
+was no record of what was settled. Closing a period freezes every figure into
+`payroll_period_lines` and opens the next one the day after.
+- Frozen, **not recomputed**: shifts stay correctable forever, so a closed period that
+  recomputed itself would change what someone was paid months ago. The display name is copied
+  for the same reason.
+- Closing **refuses while anyone is clocked in** and names them. An open shift is worth zero
+  minutes, so it would freeze their day at nothing with no way back.
+- Closing is irreversible by design. A reopenable period is a draft, not a record.
+- Two bugs found while building it:
+  - Hibernate orders **inserts before updates** within a flush, so inserting the next period
+    happened while the old one was still open and `idx_payroll_one_open_period` rejected it.
+    `saveAndFlush` on the close, then insert.
+  - The next cycle starts tomorrow, so for the rest of the closing day the "current" period
+    lies entirely in the future — the screen opened on it and looked broken. The view now
+    opens on a cycle that has actually started, and the future one is labelled «هنوز شروع نشده».
+
+**Export.** The user said twice they could not tell what the print button produced. That is
+the answer: an icon with a tooltip is not an explanation. One sheet now states the active
+range, offers everyone or one person, and describes each output in a sentence — and the
+printed page says on itself what it is for.
+
+**Production defaults.** `DEMO_USERS_ENABLED` defaulted to **true** in compose, so a deploy
+that forgot its `.env` would quietly create real accounts with a published password. Now
+false; development opts in through `.env`. Worth re-checking any other `:-true` default that
+creates data or relaxes a control.
+
+**Deploying broke open sessions.** Found by accident: after rebuilding the web container, a
+tab that had been open went blank with "Failed to fetch dynamically imported module". Every
+build renames the hashed chunks and deletes the old ones, so an open tab is holding an
+`index.html` pointing at files that no longer exist — and React renders nothing when a lazy
+import rejects. Every user would have hit this on every deploy. `lib/lazyPage.ts` reloads once
+(sessionStorage timestamp guard, so a genuine failure rethrows instead of looping); verified
+by deploying a new build with a tab open and confirming it recovers rather than dying.
+
+**Bundle.** `echarts-for-react` pulls the entire library — every chart type, map and GL
+renderer — for the three types this app draws. `lib/echarts.tsx` registers only those:
+1146 kB → 587 kB (386 → 201 kB gzipped).
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
@@ -341,7 +396,7 @@ Other things worth remembering:
   in that one spot. Converting those sheets to tokens would remove the whole class of bug.
 - **Avatar fetch is open to any authenticated user** (`GET /api/v1/users/{id}/avatar`), with
   no role or team scoping.
-- **Test coverage is still thin** — 46 backend tests (report rules, permissions, text
+- **Test coverage is still thin** — 54 backend tests (report rules, permissions, text
   normalization, shift arithmetic, shift validation) and 2 frontend tests. Testcontainers is
   on the classpath but no integration test uses it. Pure rules are covered; route-level
   authorization, persistence and the whole frontend are only verified by hand.

@@ -20,7 +20,9 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe123!}
       ADMIN_NAME: ${ADMIN_NAME:-مدیر سامانه}
-      DEMO_USERS_ENABLED: ${DEMO_USERS_ENABLED:-true}
+      # OFF by default. These are real accounts with a published password, so a deploy that
+      # forgot its .env must not quietly create them. Turn on explicitly for development.
+      DEMO_USERS_ENABLED: ${DEMO_USERS_ENABLED:-false}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo12345!}
       MOCK_DATA_ENABLED: ${MOCK_DATA_ENABLED:-false}
       MASTER_RECOVERY_CODE: ${MASTER_RECOVERY_CODE:-}

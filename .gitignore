@@ -53,3 +53,6 @@ apps/web/.env.local
 # agy / Antigravity delegation scratch
 agy_prompt.txt
 agy_build.log
+
+# Owner-only runbook: holds live secrets, never committed.
+.admin.md

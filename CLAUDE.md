@@ -103,6 +103,10 @@ gate the route in `SecurityConfig`, and mirror the enum + label in `lib/api.ts` 
   ellipse). Append new children LAST and reposition with `order`.
 - `.review-layout` is a two-column grid — anything added as a direct child consumes a cell
   and displaces the panels. Put toolbars outside it.
+- **Lazy pages go through `lib/lazyPage.ts`, never bare `React.lazy`.** Every build renames
+  the hashed chunks and deletes the old ones, so anyone with the app open is holding an
+  `index.html` that points at files which no longer exist — their next navigation renders a
+  blank screen. `lazyPage` reloads once (guarded by a timestamp so a real failure cannot loop).
 - **900px is the single mobile breakpoint** (where the sidebar swaps for the bottom bar).
   Exactly one navigation is visible at a time — never both.
 - The sidebar was originally a **dark navy gradient**; its children still carry colours meant
@@ -156,6 +160,22 @@ Replaces the paper timesheet. Two roles: `OFFICE_MANAGER` records (`RECORD_ATTEN
   it started, and `Instant.now().toString()` / `toISOString()` land on the wrong date every
   evening — Tehran is UTC+3:30, so from 20:30 UTC it is already tomorrow there. On the
   frontend use `todayIso()` from `components/JalaliDate.tsx`; on the backend `AttendanceService.ZONE`.
+- **The target is per DAY, and a period's target is derived from it** — expected working days
+  × `attendance.daily-target-minutes` (300, i.e. five hours). Thirty working days is the same
+  150 hours a month was always worth, so full cycles are unchanged, but a ten-day view is now
+  measured against ten days instead of a month it could never reach.
+- **"۳۰ روز" means thirty WORKING days, not calendar days.** Friday is the weekend and is not
+  a day anyone is short. `AttendanceService.workingDaysBetween` is the one definition; the
+  client asks `/api/v1/attendance/window?days=N` rather than doing its own date maths.
+- **`daysShort` is reported beside the hours, not folded into the percentage.** Attending
+  eight of ten days and arriving late every day are different problems with different fixes.
+- **A closed pay period is frozen, not recomputed.** Shifts stay correctable forever, so
+  recomputing would silently change what someone was paid months ago. `PayrollPeriodLine`
+  copies the figures, including the display name. Closing is deliberately irreversible, and
+  refuses while anyone still has an open shift (it would freeze their day at zero minutes).
+- Exactly one pay period is open at a time (`idx_payroll_one_open_period`). When closing,
+  **flush the update before inserting the next period** — Hibernate orders inserts ahead of
+  updates within a flush, so the new row would otherwise land while the old one is still open.
 - **All arithmetic is in whole minutes.** Hours are a display format only; summing fractional
   hours drifts, and payroll totals have to reconcile exactly.
 - **`ShiftRules.validate` is the single definition of a valid shift** — future, exit-before-entry,

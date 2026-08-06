@@ -207,6 +207,60 @@ source of that boundary.
 
 ---
 
+### 5. `V11__daily_hours_target.sql`
+Replaces the monthly figure with a daily rate, because a monthly target can only answer the
+question at the end of the month.
+```sql
+ALTER TABLE app_users ADD COLUMN daily_target_minutes INTEGER
+  CHECK (daily_target_minutes IS NULL OR daily_target_minutes > 0);
+-- 30 working days × 5h is the same 150 hours the month was worth, so full cycles are unchanged.
+INSERT INTO app_settings (key, value) VALUES ('attendance.daily-target-minutes', '300');
+```
+A period's target is `expectedDays × daily_target_minutes`, where `expectedDays` counts
+**working** days (Friday excluded). Stored in minutes like every other duration here, so the
+arithmetic never leaves integers.
+
+---
+
+### 6. `V12__payroll_periods.sql`
+Wage cycles, so the payroll view can say what was actually settled rather than only what a
+moving window looks like right now.
+```sql
+CREATE TABLE payroll_periods (
+    id BIGSERIAL PRIMARY KEY,
+    starts_on DATE NOT NULL, ends_on DATE NOT NULL,
+    closed_at TIMESTAMPTZ, closed_by_id BIGINT REFERENCES app_users(id),
+    note VARCHAR(300), created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_period_order CHECK (ends_on >= starts_on)
+);
+
+-- Two open cycles would make "the current period" ambiguous.
+CREATE UNIQUE INDEX idx_payroll_one_open_period ON payroll_periods((closed_at IS NULL))
+    WHERE closed_at IS NULL;
+
+CREATE TABLE payroll_period_lines (
+    id BIGSERIAL PRIMARY KEY,
+    period_id BIGINT NOT NULL REFERENCES payroll_periods(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES app_users(id),
+    display_name VARCHAR(120) NOT NULL,   -- as it read at close; names change
+    worked_minutes BIGINT NOT NULL, days_present INTEGER NOT NULL,
+    expected_days INTEGER NOT NULL, daily_target_minutes INTEGER NOT NULL,
+    target_minutes BIGINT NOT NULL, shifts INTEGER NOT NULL,
+    reports BIGINT NOT NULL DEFAULT 0, contacted BIGINT NOT NULL DEFAULT 0,
+    ok_count BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_period_user UNIQUE (period_id, user_id)
+);
+```
+Lines are a **copy, not a view**. Attendance stays correctable forever, so a closed period
+that recomputed itself would change what someone was paid months ago. The display name is
+copied for the same reason — a payslip should read as it did when it was issued.
+
+⚠️ When closing, flush the UPDATE that sets `closed_at` **before** inserting the next period.
+Hibernate orders inserts ahead of updates within a flush, so the new row otherwise lands while
+the old one is still open and the partial unique index rejects it.
+
+---
+
 ## 🔒 Session Management Schema
 `Spring Session JDBC` creates the following tables dynamically or via Flyway on initial setup:
 - `SPRING_SESSION`

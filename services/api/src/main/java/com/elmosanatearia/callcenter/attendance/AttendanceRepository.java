@@ -7,9 +7,6 @@ import java.util.*;
 
 public interface AttendanceRepository extends JpaRepository<AttendanceEntry, Long> {
 
-    @Query("select e from AttendanceEntry e join fetch e.user u where e.exitAt is null order by e.entryAt")
-    List<AttendanceEntry> openShifts();
-
     Optional<AttendanceEntry> findByUserIdAndExitAtIsNull(Long userId);
 
     boolean existsByUserId(Long userId);

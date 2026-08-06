@@ -1,22 +1,22 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import lazyPage from './lib/lazyPage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, apiUrl, can, Me, Permission, primaryRole, roleLabel } from './lib/api';
 import Login from './pages/Login';
 import Loading from './components/Loading';
 import Icon, { IconName } from './components/Icon';
-import { useEffect as useLayoutEffectSafe, useRef } from 'react';
 import MoreSheet from './components/MoreSheet';
 
-const AgentPage = lazy(() => import('./pages/AgentPage'));
-const SupervisorPage = lazy(() => import('./pages/SupervisorPage'));
-const ManagerPage = lazy(() => import('./pages/ManagerPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
-const ProfilePage = lazy(() => import('./pages/Profile'));
-const SchoolsPage = lazy(() => import('./pages/SchoolsPage'));
-const SecurityPage = lazy(() => import('./pages/SecurityPage'));
-const LedgerPage = lazy(() => import('./pages/LedgerPage'));
-const AttendancePage = lazy(() => import('./pages/AttendancePage'));
-const TimesheetPage = lazy(() => import('./pages/TimesheetPage'));
+const AgentPage = lazyPage(() => import('./pages/AgentPage'));
+const SupervisorPage = lazyPage(() => import('./pages/SupervisorPage'));
+const ManagerPage = lazyPage(() => import('./pages/ManagerPage'));
+const AdminPage = lazyPage(() => import('./pages/AdminPage'));
+const ProfilePage = lazyPage(() => import('./pages/Profile'));
+const SchoolsPage = lazyPage(() => import('./pages/SchoolsPage'));
+const SecurityPage = lazyPage(() => import('./pages/SecurityPage'));
+const LedgerPage = lazyPage(() => import('./pages/LedgerPage'));
+const AttendancePage = lazyPage(() => import('./pages/AttendancePage'));
+const TimesheetPage = lazyPage(() => import('./pages/TimesheetPage'));
 
 interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
@@ -108,7 +108,7 @@ export default function App() {
   // The bar's height depends on whether its sentence wraps, which depends on the name and
   // the viewport — so it is measured rather than assumed.
   const barRef = useRef<HTMLDivElement>(null);
-  useLayoutEffectSafe(() => {
+  useEffect(() => {
     const bar = barRef.current;
     if (!bar) { document.documentElement.style.removeProperty('--impersonation-offset'); return; }
     const apply = () => document.documentElement.style
