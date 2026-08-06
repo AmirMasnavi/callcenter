@@ -169,11 +169,27 @@ Replaces the paper timesheet. Two roles: `OFFICE_MANAGER` records (`RECORD_ATTEN
   client asks `/api/v1/attendance/window?days=N` rather than doing its own date maths.
 - **`daysShort` is reported beside the hours, not folded into the percentage.** Attending
   eight of ten days and arriving late every day are different problems with different fixes.
+- **A work cycle belongs to a PERSON and is counted in attendance days, not dates.** These are
+  project workers paid per N days they actually turn up — 30 days may fall in one month or
+  spread across four, and one person's cycle ends today while another's ends next month. There
+  is no "current period" for the office. Never reintroduce a shared calendar cycle.
+- **A day counts if any entry was recorded**, however short. Hours are the separate check that
+  catches a full attendance record with missing time, reported as "10 hours short ≈ 2 more
+  days" because that is how it gets discussed.
+- **"۱۰ روز" means each person's FIRST ten attendance days of their cycle**, never the last ten
+  on a calendar (`PeriodMath.firstDays`). Someone 25 days in and someone on day 8 are then
+  measured over the same stretch of work — the only way comparing them means anything. Their
+  calendar spans will differ, and that is the point, so the comparison table shows each span.
+- **Settling is a judgement, not arithmetic.** At the day count the system flags «آماده تسویه»
+  and a person confirms. The hours shortfall is then carried into the next cycle, worked off by
+  extending, or forgiven — only `CARRY_OVER` raises the next cycle's target.
+- Cycle length (`work_periods.target_days`) and daily hours (`app_users.daily_target_minutes`)
+  are **per person**; the arrangements genuinely differ.
 - **A closed pay period is frozen, not recomputed.** Shifts stay correctable forever, so
   recomputing would silently change what someone was paid months ago. `PayrollPeriodLine`
   copies the figures, including the display name. Closing is deliberately irreversible, and
   refuses while anyone still has an open shift (it would freeze their day at zero minutes).
-- Exactly one pay period is open at a time (`idx_payroll_one_open_period`). When closing,
+- Exactly one cycle is open per person (`idx_work_period_one_open`). When closing,
   **flush the update before inserting the next period** — Hibernate orders inserts ahead of
   updates within a flush, so the new row would otherwise land while the old one is still open.
 - **All arithmetic is in whole minutes.** Hours are a display format only; summing fractional

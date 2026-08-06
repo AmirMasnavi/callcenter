@@ -1768,6 +1768,77 @@ label.toggle input[type='checkbox'] {
   font-size: 0.8125rem; color: var(--text-secondary); }
 .rule-note b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
+/* ============================================ work cycles (per person) */
+
+/* Days lead, because a cycle is counted in them; hours are the check beside them. */
+.period-row { display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  padding: var(--space-3) var(--space-4); background: transparent; border: none;
+  text-align: start; color: inherit; cursor: pointer; }
+.days-cell { flex: none; text-align: center; min-width: 4.5rem; }
+.days-cell b { display: block; font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.days-cell b i { font-style: normal; font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; }
+.days-cell span { font-size: 0.6875rem; color: var(--text-muted); }
+.hours-cell b.short { color: var(--danger); }
+.hours-cell b.ok { color: var(--success); }
+
+.period-list article.ready { border-color: var(--success); background: var(--success-tint); }
+.ready-badge { flex: none; padding: 0.25rem 0.6rem; border-radius: 999px;
+  background: var(--success); color: #fff; font-size: 0.6875rem; font-weight: 700; white-space: nowrap; }
+.due-count { text-align: center; padding: var(--space-2) var(--space-4);
+  background: var(--success-tint); border-radius: var(--radius-md); }
+.due-count b { display: block; font-size: 1.5rem; color: var(--success-strong, var(--success)); line-height: 1.1; }
+.due-count span { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* Settled cycles: the archive a person's pay was based on. */
+.period-history { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.settled-period { display: flex; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3); background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.settled-period b { display: block; font-size: 0.875rem; }
+.settled-period span { font-size: 0.75rem; color: var(--text-muted); }
+.settled-period > div:last-child { text-align: end; }
+.settled-period span.short { color: var(--danger); }
+.settled-period span.ok { color: var(--success); }
+
+/* How a shortfall is settled is a judgement, so the options carry their consequences. */
+.settlement-options { display: grid; gap: var(--space-2); margin: var(--space-3) 0; }
+.modal .settlement-option { display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3); margin: 0; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.modal .settlement-option.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.modal .settlement-option input { width: auto; min-height: 0; margin-top: 0.2rem; flex: none; }
+.modal .settlement-option b { display: block; font-size: 0.875rem; margin-bottom: 0.15rem; }
+.modal .settlement-option span { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; }
+
+/* ============================================ comparison */
+.compare-toolbar { align-items: flex-end; gap: var(--space-4); }
+.people-picker { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.people-picker button { min-height: var(--tap-target); padding: 0.35rem 0.85rem; border-radius: 999px;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  background: var(--surface-sunken); color: var(--text-secondary); border: 1px solid var(--border); }
+.people-picker button.active { background: var(--accent-fill); color: #fff; border-color: transparent; }
+
+.metric-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.metric-tabs button { padding: 0.3rem 0.7rem; border-radius: var(--radius-sm);
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+.metric-tabs button.active { background: var(--accent-fill); color: #fff; border-color: transparent; }
+
+td.short { color: var(--danger); font-variant-numeric: tabular-nums; }
+td.ok { color: var(--success); font-variant-numeric: tabular-nums; }
+.span-cell { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .period-row { display: grid; grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'face who days' 'bar bar bar' 'hrs hrs badge';
+    gap: var(--space-2) var(--space-3); align-items: center; }
+  .period-row > .avatar { grid-area: face; }
+  .period-row > .staff-text { grid-area: who; min-width: 0; }
+  .period-row > .days-cell { grid-area: days; }
+  .period-row > .target-bar { grid-area: bar; width: 100%; }
+  .period-row > .hours-cell { grid-area: hrs; text-align: start; }
+  .period-row > .ready-badge { grid-area: badge; justify-self: end; }
+}
+
 /* Wage cycles: the open one, and what has been settled before it. */
 .period-bar { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-2);
   margin-bottom: var(--space-3); scrollbar-width: thin; }

@@ -17,6 +17,7 @@ const SecurityPage = lazyPage(() => import('./pages/SecurityPage'));
 const LedgerPage = lazyPage(() => import('./pages/LedgerPage'));
 const AttendancePage = lazyPage(() => import('./pages/AttendancePage'));
 const TimesheetPage = lazyPage(() => import('./pages/TimesheetPage'));
+const ComparePage = lazyPage(() => import('./pages/ComparePage'));
 
 interface NavItem { path: string; icon: IconName; label: string; needs?: Permission[] }
 
@@ -36,7 +37,8 @@ const NAV: NavItem[] = [
   { path: '/app/ledger',    icon: 'sheet',   label: 'دفتر گزارش‌ها',  needs: ['VIEW_ALL_REPORTS'] },
   // A manager may look at who is in without being able to write to it (VIEW_PRESENCE).
   { path: '/app/attendance',icon: 'clock',   label: 'ورود و خروج',    needs: ['RECORD_ATTENDANCE', 'VIEW_PRESENCE'] },
-  { path: '/app/timesheet', icon: 'hours',   label: 'ساعات کاری',     needs: ['VIEW_ATTENDANCE'] },
+  { path: '/app/timesheet', icon: 'hours',   label: 'دوره‌های کاری',   needs: ['VIEW_ATTENDANCE'] },
+  { path: '/app/compare',   icon: 'chart',   label: 'مقایسه عملکرد',  needs: ['VIEW_ATTENDANCE'] },
   { path: '/app/profile',   icon: 'user',    label: 'حساب من' },
 ];
 
@@ -66,7 +68,7 @@ const PRIORITY_BY_PERSONA: { needs: Permission; order: string[] }[] = [
   // Front desk: the day is the attendance list.
   { needs: 'RECORD_ATTENDANCE', order: ['/app/attendance', '/app/timesheet', '/app/profile'] },
   // Payroll: hours first, then the performance behind them.
-  { needs: 'VIEW_ATTENDANCE', order: ['/app/timesheet', '/app/ledger', '/app/dashboard', '/app/profile'] },
+  { needs: 'VIEW_ATTENDANCE', order: ['/app/timesheet', '/app/compare', '/app/ledger', '/app/dashboard'] },
   { needs: 'REVIEW_REPORTS', order: ['/app/review', '/app/dashboard', '/app/history', '/app/profile'] },
   // Operator: filing and checking their own reports.
   { needs: 'SUBMIT_REPORTS', order: ['/app/report', '/app/history', '/app/profile'] },
@@ -246,6 +248,7 @@ export default function App() {
             : active === '/app/ledger' ? <LedgerPage />
             : active === '/app/attendance' ? <AttendancePage />
             : active === '/app/timesheet' ? <TimesheetPage />
+            : active === '/app/compare' ? <ComparePage />
             : active === '/app/profile' ? <ProfilePage me={user} onLogout={logout} />
             : <AdminPage />}
         </Suspense>

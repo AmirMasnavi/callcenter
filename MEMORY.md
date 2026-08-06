@@ -388,6 +388,35 @@ by deploying a new build with a tab open and confirming it recovers rather than 
 renderer — for the three types this app draws. `lib/echarts.tsx` registers only those:
 1146 kB → 587 kB (386 → 201 kB gzipped).
 
+### 2026-08-06 — The payroll model was wrong, twice
+
+Worth recording because both mistakes came from the same habit: assuming the calendar is the
+organising principle.
+
+**These are project workers.** They are paid per 30 days they *actually turn up*, however long
+that takes — someone may spread 30 attendance days across four months. Each person's cycle is
+their own: one ends today, another next month. V12's single shared cycle over a date range was
+therefore wrong in kind, not in detail, and V13 replaced it with `work_periods` keyed on a
+user and counted in attendance days.
+
+**The comparison window was wrong the same way.** "۱۰ روز" does not mean the last ten days on a
+calendar; it means each person's *first* ten attendance days of their cycle. Someone
+twenty-five days in and someone on day eight then get measured over the same stretch of work.
+Verified against real data: one operator's first 10 days span 07-08→07-20, another's
+07-08→07-19 — different calendar windows, same amount of work, which is exactly the point.
+The comparison table shows each person's real span so this is visible rather than surprising.
+
+**What the hours are actually for.** Not a second target — a check on the days. Thirty days
+attended but ten hours short means "come back for about two more days". At settlement the
+manager chooses: carry the deficit into the next cycle, hold the cycle open until it is worked
+off, or forgive it. That choice is a judgement about the person, so the system flags readiness
+and a human decides; it never settles on its own.
+
+**Also fixed: the signature form printed a blank page.** `onDone()` ran straight after
+`window.print()`, which returns before the document is serialised — always when "Save as PDF"
+is chosen — so React had unmounted the sheets before the PDF was captured. `afterprint` is the
+event that means done.
+
 ## Known Issues
 
 - **`LoginGuard` is in-memory per instance** (`ConcurrentHashMap`). Brute-force throttling is
