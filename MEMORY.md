@@ -366,6 +366,16 @@ that forgot its `.env` would quietly create real accounts with a published passw
 false; development opts in through `.env`. Worth re-checking any other `:-true` default that
 creates data or relaxes a control.
 
+**Contrast auditing has a measurement trap.** Running the scan 1.5s after a route change
+reported 8–33 failures on every page, including nonsense like the same two strings failing on
+screens that do not contain them. React keeps the outgoing tree mounted during a Suspense
+transition, and the theme transition is still running — so the scan reads a blend of two
+pages mid-fade. At 2.5s+ the same pages come back clean. **Wait for the page to settle before
+measuring, and be suspicious of a failure that appears on every route.** One genuine bug did
+hide in that noise: the counts inside the new role-filter chips were at `opacity: 0.75` over
+an already-tinted background, giving 2.56:1. Fading text over a tint is what costs the
+contrast; size and weight make something secondary for free.
+
 **Deploying broke open sessions.** Found by accident: after rebuilding the web container, a
 tab that had been open went blank with "Failed to fetch dynamically imported module". Every
 build renames the hashed chunks and deletes the old ones, so an open tab is holding an

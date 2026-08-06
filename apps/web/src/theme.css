@@ -1742,7 +1742,9 @@ label.toggle input[type='checkbox'] {
    whole point of the row. Scoped this way because a plain `.role-filter button` background
    declared later in the file would override every .tone-* rule. */
 .role-filter button:not([class*='tone-']) { background: var(--surface-sunken); color: var(--text-secondary); }
-.role-filter button i { font-style: normal; font-size: 0.75rem; opacity: 0.75;
+/* No opacity here: fading the count over an already-tinted chip dropped it to 2.6:1. The
+   count is secondary by size and weight instead, which costs no contrast. */
+.role-filter button i { font-style: normal; font-size: 0.6875rem; font-weight: 500;
   font-variant-numeric: tabular-nums; }
 .role-filter button.active { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
 .role-filter button:not([class*='tone-']).active { background: var(--accent-fill); color: #fff;
