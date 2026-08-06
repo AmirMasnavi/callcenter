@@ -17,6 +17,25 @@ public interface DailyReportRepository extends JpaRepository<DailyReport,Long>{
  @Query("select r from DailyReport r join fetch r.agent a left join fetch a.supervisor where r.reportDate between :from and :to and r.status in :statuses and r.voidedAt is null order by r.reportDate,a.displayName")
  List<DailyReport> aggregateSource(@Param("from") LocalDate from,@Param("to") LocalDate to,@Param("statuses") Collection<ReportStatus> statuses);
 
+ /**
+  * Per-agent daily totals over a range, aggregated in the database.
+  *
+  * Payroll asks this once per person. Reusing aggregateSource meant loading every report for
+  * every agent across the range and filtering in Java — the work grew with headcount TIMES
+  * report volume. Grouping by date here returns one row per day per agent instead, which is
+  * also exactly the shape the caller needs to pick out a person's first N days.
+  */
+ @Query("""
+     select r.agent.id, r.reportDate, count(r), coalesce(sum(r.contactedCount),0),
+            coalesce(sum(r.okCount),0), coalesce(sum(r.attendeeCount),0)
+       from DailyReport r
+      where r.agent.id in :agentIds and r.reportDate between :from and :to
+        and r.status in :statuses and r.voidedAt is null
+      group by r.agent.id, r.reportDate""")
+ List<Object[]> dailyTotalsByAgent(@Param("agentIds") Collection<Long> agentIds,
+   @Param("from") LocalDate from,@Param("to") LocalDate to,
+   @Param("statuses") Collection<ReportStatus> statuses);
+
  // --- admin-wide views: no supervisor scoping ---
 
  @Query("select r from DailyReport r join fetch r.agent a where r.status=:status and r.voidedAt is null and r.archivedAt is null order by r.submittedAt desc")

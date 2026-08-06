@@ -271,8 +271,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   transform-origin: center bottom;
   position: relative;
 }
+
+/*
+ * The scroll moves to .sheet-content so the frame — and the close button pinned to it — stays
+ * put. As a child of the scrolling box the button drifted upward with the content and was
+ * clipped by the rounded corner, which is what made it "disappear" on a tall desktop sheet.
+ */
+.modal > .sheet-body { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+.sheet-content { overflow-y: auto; overscroll-behavior: contain; padding: var(--space-5); }
+/* Space for the button so a right-aligned heading never runs underneath it. */
+.sheet-content > h2:first-child { padding-inline-start: 2.75rem; }
 .modal .close {
   position: absolute;
+  z-index: 2;
   inset-inline-start: var(--space-4);
   inset-block-start: var(--space-4);
   width: 2rem;
@@ -302,12 +313,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     box-shadow: var(--elevation-sheet);
     animation: none; /* the spring in useSheetDrag owns this */
   }
+  /* The clearance belongs to the scrolling region, so the last control can actually be
+     scrolled up above the nav rather than sitting in dead space below it. */
+  .modal > .sheet-body { padding-bottom: 0; }
+  .sheet-content { padding-bottom: calc(var(--space-5) + 3.5rem + env(safe-area-inset-bottom, 0px)); }
   .sheet-grabber {
     width: 2.25rem;
     height: 0.3125rem;
     border-radius: 999px;
     background: rgba(18, 58, 99, 0.22);
-    margin: 0 auto var(--space-3);
+    margin: var(--space-3) auto 0;
+    flex: none;
     cursor: grab;
   }
   .sheet-grabber:active { cursor: grabbing; }

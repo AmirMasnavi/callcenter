@@ -56,3 +56,9 @@ agy_build.log
 
 # Owner-only runbook: holds live secrets, never committed.
 .admin.md
+
+# Working notes for the AI assistant and the project log. Useful locally, noise in a public
+# release. Kept under their real names because Claude Code loads CLAUDE.md by that exact
+# filename — renaming them would silently stop future sessions reading them.
+CLAUDE.md
+MEMORY.md

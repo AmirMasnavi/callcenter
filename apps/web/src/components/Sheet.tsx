@@ -35,8 +35,10 @@ export default function Sheet({
            onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove}
            onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}>
         <div className="sheet-grabber" aria-hidden="true" />
+        {/* Outside the scrolling region on purpose: as a child of it, the close button scrolled
+            away with the content and got clipped by the sheet's rounded corner. */}
         <button type="button" className="close" onClick={onClose} aria-label="بستن">×</button>
-        {children}
+        <div className="sheet-content">{children}</div>
       </div>
     </div>,
     document.body,

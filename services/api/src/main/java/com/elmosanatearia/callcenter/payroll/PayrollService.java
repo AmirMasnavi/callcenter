@@ -117,22 +117,44 @@ public class PayrollService {
     }
 
     /** Report figures for a specific set of dates — used so a slice's calls match its days. */
-    private record CallFacts(long reports, long contacted, long ok, long attendees) {}
+    private record CallFacts(long reports, long contacted, long ok, long attendees) {
+        static final CallFacts NONE = new CallFacts(0, 0, 0, 0);
+        CallFacts plus(CallFacts o) {
+            return new CallFacts(reports + o.reports, contacted + o.contacted,
+                    ok + o.ok, attendees + o.attendees);
+        }
+    }
 
-    private CallFacts callsOn(Long userId, Collection<LocalDate> dates) {
-        if (dates.isEmpty()) return new CallFacts(0, 0, 0, 0);
-        Set<LocalDate> wanted = new HashSet<>(dates);
-        LocalDate from = Collections.min(wanted), to = Collections.max(wanted);
-        List<DailyReport> rs = reports.aggregateSource(from, to,
-                        List.of(ReportStatus.SUBMITTED, ReportStatus.APPROVED, ReportStatus.CORRECTED_APPROVED))
-                .stream()
-                .filter(r -> r.getAgent().getId().equals(userId) && wanted.contains(r.getReportDate()))
-                .toList();
-        return new CallFacts(rs.size(),
-                rs.stream().mapToLong(DailyReport::getContactedCount).sum(),
-                rs.stream().mapToLong(DailyReport::getOkCount).sum(),
-                rs.stream().filter(r -> r.getAttendeeCount() != null)
-                        .mapToLong(DailyReport::getAttendeeCount).sum());
+    private static final List<ReportStatus> COUNTED =
+            List.of(ReportStatus.SUBMITTED, ReportStatus.APPROVED, ReportStatus.CORRECTED_APPROVED);
+
+    /**
+     * Per-agent, per-day call totals for a whole group in one query.
+     *
+     * <p>Asking per person meant loading every report in the range for everybody and filtering
+     * in Java, once for each person — work growing with headcount times report volume. The
+     * database groups it instead, and the per-day shape is what picking a person's first N
+     * days needs anyway.
+     */
+    private Map<Long, Map<LocalDate, CallFacts>> callsByAgentDay(
+            Collection<Long> agentIds, LocalDate from, LocalDate to) {
+        if (agentIds.isEmpty() || from == null || to == null) return Map.of();
+        Map<Long, Map<LocalDate, CallFacts>> out = new HashMap<>();
+        for (Object[] row : reports.dailyTotalsByAgent(agentIds, from, to, COUNTED)) {
+            out.computeIfAbsent((Long) row[0], k -> new HashMap<>())
+               .put((LocalDate) row[1], new CallFacts(
+                       ((Number) row[2]).longValue(), ((Number) row[3]).longValue(),
+                       ((Number) row[4]).longValue(), ((Number) row[5]).longValue()));
+        }
+        return out;
+    }
+
+    /** Sums the pre-grouped day totals over exactly the days a slice covers. */
+    private static CallFacts sumOver(Map<LocalDate, CallFacts> byDay, Collection<LocalDate> dates) {
+        if (byDay == null) return CallFacts.NONE;
+        CallFacts total = CallFacts.NONE;
+        for (LocalDate d : dates) total = total.plus(byDay.getOrDefault(d, CallFacts.NONE));
+        return total;
     }
 
     /** Live status of an open cycle, or the frozen record of a settled one. */
@@ -162,7 +184,11 @@ public class PayrollService {
         int shifts = facts.shiftsByDay().values().stream().mapToInt(Integer::intValue).sum();
         long target = PeriodMath.targetMinutes(p.getTargetDays(), daily, p.getCarriedOverMinutes());
         long balance = worked - target;
-        CallFacts calls = callsOn(u.getId(), facts.minutesByDay().keySet());
+        CallFacts calls = facts.minutesByDay().isEmpty() ? CallFacts.NONE
+                : sumOver(callsByAgentDay(List.of(u.getId()),
+                              Collections.min(facts.minutesByDay().keySet()),
+                              Collections.max(facts.minutesByDay().keySet())).get(u.getId()),
+                          facts.minutesByDay().keySet());
 
         return new PeriodStatus(p.getId(), u.getId(), u.getDisplayName(), u.getUsername(),
                 u.getAvatarBytes() != null, p.getSeq(), p.getStartedOn(), null, true,
@@ -176,10 +202,21 @@ public class PayrollService {
 
     private static long orZero(Long v) { return v == null ? 0 : v; }
 
-    /** Every operator's current cycle — the payroll manager's board. */
+    /**
+     * Every operator's current cycle — the payroll manager's board.
+     *
+     * <p>Includes anyone with an OPEN cycle even if their account has been deactivated. Someone
+     * who leaves partway through is still owed the days they worked, and dropping them from
+     * the board would make that money unreachable — the cycle has to stay visible until it is
+     * settled.
+     */
     @Transactional
     public List<PeriodStatus> board() {
-        return users.findActiveByRole(Role.AGENT).stream()
+        Map<Long, AppUser> people = new LinkedHashMap<>();
+        users.findActiveByRole(Role.AGENT).forEach(u -> people.put(u.getId(), u));
+        periods.allOpen().forEach(p -> people.putIfAbsent(p.getUser().getId(), p.getUser()));
+
+        return people.values().stream()
                 .map(u -> status(currentFor(u)))
                 // Whoever is closest to being owed money first; that is the actionable end.
                 .sorted(Comparator.comparingDouble(
@@ -212,17 +249,32 @@ public class PayrollService {
                 .filter(u -> userIds == null || userIds.isEmpty() || userIds.contains(u.getId()))
                 .toList();
 
-        List<Slice> out = new ArrayList<>();
+        // Everyone's periods and attendance first, so the call totals can be fetched in one
+        // query for the whole group rather than one per person.
+        record Prepared(AppUser user, DayFacts facts, List<LocalDate> window) {}
+        List<Prepared> prepared = new ArrayList<>();
         for (AppUser u : people) {
             WorkPeriod p = periodSeq == null ? currentFor(u)
                     : periods.historyFor(u.getId()).stream()
                         .filter(x -> x.getSeq() == periodSeq).findFirst().orElse(null);
             if (p == null) continue;
-
             DayFacts facts = attendanceIn(u.getId(), p.getStartedOn(), p.getEndedOn());
             List<LocalDate> window = days > 0
                     ? PeriodMath.firstDays(facts.minutesByDay().keySet(), days)
                     : List.copyOf(facts.minutesByDay().keySet());
+            prepared.add(new Prepared(u, facts, window));
+        }
+
+        List<LocalDate> everyDay = prepared.stream().flatMap(x -> x.window().stream()).toList();
+        Map<Long, Map<LocalDate, CallFacts>> callsByAgent = everyDay.isEmpty() ? Map.of()
+                : callsByAgentDay(prepared.stream().map(x -> x.user().getId()).toList(),
+                                  Collections.min(everyDay), Collections.max(everyDay));
+
+        List<Slice> out = new ArrayList<>();
+        for (Prepared prep : prepared) {
+            AppUser u = prep.user();
+            DayFacts facts = prep.facts();
+            List<LocalDate> window = prep.window();
             if (window.isEmpty()) {
                 out.add(new Slice(u.getId(), u.getDisplayName(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null));
                 continue;
@@ -232,7 +284,7 @@ public class PayrollService {
             int shifts = window.stream().mapToInt(d -> facts.shiftsByDay().getOrDefault(d, 0)).sum();
             int daily = dailyMinutesFor(u);
             long target = (long) window.size() * daily;
-            CallFacts calls = callsOn(u.getId(), window);
+            CallFacts calls = sumOver(callsByAgent.get(u.getId()), window);
 
             out.add(new Slice(u.getId(), u.getDisplayName(), window.size(), shifts,
                     worked, target, worked - target,

@@ -117,3 +117,41 @@ To restore from a backup:
 ```bash
 gunzip -c /var/backups/callcenter/db_backup_YYYYMMDD_HHMMSS.sql.gz | docker exec -i callcenter-db-1 psql -U callcenter -d callcenter
 ```
+
+
+---
+
+## 🚀 Serving layer (`apps/web/nginx.conf`)
+
+The SPA is served by nginx, which also proxies `/api/` and `/actuator/` to the API. Four things
+there are load-bearing:
+
+**Compression.** Assets are gzipped at *build* time (`Dockerfile`) and served with
+`gzip_static`, so nginx sends the pre-built `.gz` rather than compressing per request. Without
+it the bundle went out raw — 249 kB instead of 78 kB for the main chunk, and 587 kB instead of
+201 kB for the chart chunk.
+
+**Caching.** `/assets/` is `immutable, max-age=1y` because the filenames are content-hashed.
+`index.html` is `no-cache, must-revalidate` and **must stay that way**: it is the map to those
+hashed chunks, and a cached copy points at files the next deploy deletes — a blank screen for
+anyone still holding it. (`lib/lazyPage.ts` recovers from this client-side too, but the header
+is what stops it happening.)
+
+**Security headers** live in `security-headers.conf` and are `include`d into every location.
+nginx's `add_header` does **not** inherit: the moment a location declares one of its own, every
+`add_header` from the enclosing scope is dropped for that location. Since each location sets its
+own `Cache-Control`, the security headers have to be included explicitly. `/api/` deliberately
+does not include them — Spring Security already sets them, and adding nginx's copy duplicates
+every one.
+
+**Only `web` publishes a port.** The database and API are reachable only on the compose network.
+
+## 🔧 Performance notes
+
+- `PayrollService` fetches call totals for a whole group in **one grouped query**
+  (`dailyTotalsByAgent`). Asking per person meant loading every report in the range for
+  everybody and filtering in Java, once for each person — work growing with headcount times
+  report volume.
+- ECharts is a **custom build** (`lib/echarts.tsx`) registering only the three chart types the
+  app draws. The full library was 1.1 MB minified.
+- Pages are lazily loaded through `lib/lazyPage.ts`, never bare `React.lazy`.
